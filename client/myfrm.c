@@ -73,8 +73,14 @@ int main( int argc, char* argv[] ){
 	// setup username and password
 	printf("Enter your username: ");
 	if (	fgets( buf, MAX_LINE, stdin ) ) {
-		strtok(buf, "\n");
-		if ( send( s, buf, strlen(buf), 0) == -1 ) {
+		int i;
+		for(i = 0; i < MAX_LINE; i++) {
+			if (buf[i] == '\n' || buf[i] == ' ') {
+				buf[i] = '\0'; 
+			}
+		}// set null characters
+		//strtok(buf, " \n");
+		if ( send( s, buf, strlen(buf) + 1, 0) == -1 ) {
 			fprintf( stderr, "myfrm: error sending username\n");
 			exit(1);
 		}
@@ -87,8 +93,13 @@ int main( int argc, char* argv[] ){
 	if (receive_result(s) == 2) {// get request
 	printf("Enter your password: ");
 	if (	fgets( buf, MAX_LINE, stdin ) ) {
-		strtok(buf, "\n");
-		if ( send( s, buf, strlen(buf), 0) == -1 ) {
+		int i;
+		for( i = 0; i < MAX_LINE; i++) {
+			if (buf[i] == '\n' || buf[i] == ' ') {
+				buf[i] = '\0'; 
+			}
+		}
+		if ( send( s, buf, strlen(buf)+1, 0) == -1 ) {// send null character as well
 			fprintf( stderr, "myfrm: error sending username\n");
 			exit(1);
 		}
@@ -102,7 +113,7 @@ int main( int argc, char* argv[] ){
 	printf("waiting for result... \n");
 	if ((result = receive_result(s)) == 1) {
 		printf( "Signed in.\n");
-	} else if (result == -1) {
+	} else if (result == -1) { //TODO: let users sign in again
 		printf( "Password incorrect or username already chosen.\n");
 		return;
 	} else {

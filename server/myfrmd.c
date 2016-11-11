@@ -135,32 +135,44 @@ int main( int argc, char* argv[] ){
 		}
 		
 		char* user_line;
-		char* pass_found;
+		char* pass_test;
+		char* user_test;
 		size_t len = 0;
 		bool user_exists = false;
 		bool signed_in = false;
 		printf("attempting getline \n");
 		while (getline(&user_line, &len, fp) != -1) {
-			if (strstr(user_line, username) != NULL) { // username in line
+			//if (((user_found = strstr(user_line, username)) != NULL) && (strlen(user_found) == strlen(username))) { 
+			if (strlen(user_line) <= 0) continue;
+			user_test = strtok(user_line, " \n");
+			printf("user_test: %s\n", user_test);
+			if (strcmp(user_test, username) == 0) {
+// username in line and s
 				user_exists = true;	
-				if ((pass_found = strstr(user_line, password)) != NULL) {
-					if (strlen(pass_found) == strlen(password)) {
-						send_result(s, 1); // Signed in! proceed...
-						signed_in = true;
-					}
+				pass_test = strtok(NULL, " \n");
+				printf("pass_test: %s\n", pass_test);
+				if ((strcmp(pass_test, password) == 0)) {
+					send_result(new_s, 1); // Signed in! proceed...
+					signed_in = true;
 				}
 			}
+			memset(user_line,0,strlen(user_line));
+			memset(user_test,0,strlen(user_test));
+			memset(pass_test,0,strlen(pass_test));
 		}
 		printf("ended getline \n");
 		if (!user_exists) {
 			// append username and password to file
+			printf("%s\n", username);
 			fprintf(fp, "%s %s\n", username, password);
 			fclose(fp);
 			signed_in = true;
-			send_result(s, 1);
+			printf("got line, signed in\n");
+			send_result(new_s, 1);
 		} else if (!signed_in) {
 			// not able to sign in
-			send_result(s, -1); // either password wrong or need a new user name
+			printf("could not sign in\n");
+			send_result(new_s, -1); // either password wrong or need a new user name
 			fclose(fp);
 		}
 		printf( "signed in : %i\n", signed_in);
@@ -175,6 +187,8 @@ int main( int argc, char* argv[] ){
 		}
 
 		close( new_s );
+		memset(username,0,strlen(username));
+		memset(password,0,strlen(password));
 	}
 
 	return 0;
