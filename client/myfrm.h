@@ -1,7 +1,7 @@
-// myftp.h
+// myfrm.h
 
-#ifndef MYFTP_H
-#define MYFTP_H
+#ifndef MYFRM_H
+#define MYFRM_H
 
 #include <unistd.h>
 #include <stdint.h>
@@ -10,6 +10,17 @@
 #include <sys/stat.h> // for directory status
 
 void handle_action( char*, int, int);
+
+void create_board(int);
+void leave_message(int);
+void delete_message(int);
+void edit_message(int);
+void list_boards(int);
+void read_board(int);
+void append_file(int);
+void download_file(int);
+void destroy_board(int);
+
 void request(int);
 void delete_file( int );
 void list_dir( int );

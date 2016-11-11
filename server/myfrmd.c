@@ -23,19 +23,30 @@
 #define MAX_PENDING 5
 #define MAX_LINE 256
 
-void handle_input(char* msg, int s, const char* username);
+void handle_input(char* msg, int s, const char *username);
+
+void create_board(int, const char *username);
+void leave_message(int);
+void delete_message(int);
+void edit_message(int);
+void list_boards(int);
+void read_board(int);
+void append_file(int);
+void download_file(int);
+void destroy_board(int);
+
 void request(int);
-int list_dir(int s);
-void remove_dir(int s);
-void create_board(int s, const char* username);
-void delete_file(int s);
-void change_dir(int s);
-int check_dir(char *dir); // checks that the directory exists
-int check_file(char *file);
-int receive_instruction(int s, char** buf);
-void send_result(int s, short result);
-void upload( int s );
-int receive_file(int s, FILE** fp); 
+int list_dir(int);
+void remove_dir(int);
+void make_dir(int);
+void delete_file(int);
+void change_dir(int);
+int check_dir(char*); // checks that the directory exists
+int check_file(char*);
+int receive_instruction(int,char**);
+void send_result(int, short);
+void upload(int);
+int receive_file(int,FILE**); 
 
 int main( int argc, char* argv[] ){
 	struct sockaddr_in sin, client_addr;
@@ -164,7 +175,7 @@ int main( int argc, char* argv[] ){
 		printf("ended getline \n");
 		if (!user_exists) {
 			// append username and password to file
-			printf("%s\n", username);
+			//printf("%s\n", username);
 			fprintf(fp, "%s %s\n", username, password);
 			fclose(fp);
 			signed_in = true;
@@ -172,7 +183,7 @@ int main( int argc, char* argv[] ){
 			send_result(new_s, 1);
 		} else if (!signed_in) {
 			// not able to sign in
-			printf("could not sign in\n");
+			//printf("could not sign in\n");
 			send_result(new_s, -1); // either password wrong or need a new user name
 			fclose(fp);
 		}
@@ -197,23 +208,57 @@ int main( int argc, char* argv[] ){
 
 void handle_input(char* msg, int s, const char* username) {
 	// check for all special 3 char messages
-	if (!strncmp("DEL", msg, 3)) {
-		delete_file(s);
-	} else if (!strncmp("LIS", msg, 3)) {
-		list_dir(s);
+	if( !strncmp("CRT", msg, 3) )
+		create_board( s , username);
+	else if( !strncmp("MSG", msg, 3) )
+		leave_message( s );
+	else if( !strncmp("DLT", msg, 3) )
+		delete_message( s );
+	else if( !strncmp("EDT", msg, 3) )
+		edit_message( s );
+	else if( !strncmp("LIS", msg, 3) )
+		list_boards(s);
+	else if( !strncmp("RDB", msg, 3) )
+		read_board(s);
+	else if( !strncmp("APN", msg, 3) )
+		append_file( s );
+	else if( !strncmp("DWN", msg, 3) )
+		download_file( s );
+	else if( !strncmp("DST", msg, 3) )
+		destroy_board( s );
+}
 
-	} else if (!strncmp("CRT", msg, 3)) {
-		create_board(s, username);
-	} else if (!strncmp("RMD", msg, 3)) {
-		remove_dir(s);
-	
-	} else if (!strncmp("CHD", msg, 3)) {
-		// start change_directory process and return its response
-		change_dir(s);
-	} else if (!strncmp("UPL", msg, 3)) {
-		upload(s);
-	} else if (!strncmp("REQ", msg, 3))
-		request( s );
+
+void leave_message( int s ){
+
+}
+
+void delete_message( int s ){
+
+}
+
+void edit_message( int s ){
+
+}
+
+void list_boards( int s ){
+
+}
+
+void read_board( int s ){
+
+}
+
+void append_file( int s ){
+
+}
+
+void download_file( int s ){
+
+}
+
+void destroy_board( int s ){
+
 }
 
 void request( int s ){

@@ -1,3 +1,7 @@
 johannes newumburg
 jaded norma
+<<<<<<< HEAD
 John ello
+=======
+john pass
+>>>>>>> 7577410951e21f92e9d14d3a77a4f1f81defdb21
