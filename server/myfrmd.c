@@ -23,11 +23,11 @@
 #define MAX_PENDING 5
 #define MAX_LINE 256
 
-void handle_input(char* msg, int s);
+void handle_input(char* msg, int s, const char* username);
 void request(int);
 int list_dir(int s);
 void remove_dir(int s);
-void make_dir(int s);
+void create_board(int s, const char* username);
 void delete_file(int s);
 void change_dir(int s);
 int check_dir(char *dir); // checks that the directory exists
@@ -124,6 +124,7 @@ int main( int argc, char* argv[] ){
 			exit( 1 );
 		}
 	
+		// TODO: make a function processing files and checking for strings
 		fp = fopen("users.txt", "ra+");
 		if (fp == NULL) {
 			fp = fopen("users.txt", "w+");
@@ -183,7 +184,7 @@ int main( int argc, char* argv[] ){
 			if( !strncmp( buf, "XIT", 3)) {
 				break;
 			}
-			handle_input(buf, new_s);
+			handle_input(buf, new_s, username);
 		}
 
 		close( new_s );
@@ -194,16 +195,15 @@ int main( int argc, char* argv[] ){
 	return 0;
 }
 
-void handle_input(char* msg, int s) {
+void handle_input(char* msg, int s, const char* username) {
 	// check for all special 3 char messages
 	if (!strncmp("DEL", msg, 3)) {
 		delete_file(s);
 	} else if (!strncmp("LIS", msg, 3)) {
 		list_dir(s);
 
-	} else if (!strncmp("MKD", msg, 3)) {
-		make_dir(s);
-
+	} else if (!strncmp("CRT", msg, 3)) {
+		create_board(s, username);
 	} else if (!strncmp("RMD", msg, 3)) {
 		remove_dir(s);
 	
@@ -582,6 +582,50 @@ int check_dir(char *dir) { // checks that the directory exists
 		closedir(dp);
 		return 1; //directory found
 	}
+}
+
+void create_board(int s, const char* username) {
+
+	char board_name[MAX_LINE];	
+	char *board_test;
+	char *board_line;
+	size_t len;
+	FILE *fp;
+
+	if (read(s, board_name, MAX_LINE) == -1) {
+		fprintf( stderr, "myfrmd: error receiving name of new board\n");
+		exit( 1 );
+	}
+	fp = fopen("boards.txt", "ra+");
+	if (fp == NULL) {
+		fp = fopen("boards.txt", "w+");
+		// no boards existing, tell it its new
+		if (fp == NULL) {
+		fprintf( stderr, "myfrmd: could not open boards file\n");
+		send_result(s, -1); // tell client?
+		return;
+		}
+	}
+
+	while (getline(&board_line, &len, fp) != -1) {
+
+			if (len <= 0) continue;
+
+			board_test = strtok(board_line, " \n");
+
+			if (strcmp(board_test, board_name) == 0) {
+				send_result(s, -2); // board exists
+				return;
+			}
+		memset(board_line, 0, strlen(board_line));
+		memset(board_test, 0, strlen(board_test));
+	}
+	fprintf(fp, "%s\n", board_name); // appends to file or writes at beginning.
+	fp = fopen(board_name, "w+");
+	fprintf(fp, "%s\n\n", username);
+	send_result(s, 1);
+	return;
+	
 }
 
 void make_dir(int s) {

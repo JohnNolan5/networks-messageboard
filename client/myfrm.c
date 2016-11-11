@@ -72,6 +72,7 @@ int main( int argc, char* argv[] ){
 	if (receive_result(s) == 1) {// get request
 	// setup username and password
 	printf("Enter your username: ");
+	// TODO: move into get name function 
 	if (	fgets( buf, MAX_LINE, stdin ) ) {
 		int i;
 		for(i = 0; i < MAX_LINE; i++) {
@@ -458,23 +459,25 @@ void list_dir(int s){
 	}
 }
 
-void make_dir(int s) {
-	char buf[MAX_LINE];
+void create_board(int s) {
 	short result;
+	FILE* fp;
 
-	printf( "Enter the directory name to create: ");
-	fflush( stdin );
-	fgets( buf, MAX_LINE, stdin );
-	send_instruction( s, buf );
+	printf("Enter the name of your board: \n");
+	send_name(s);
 
-	result = receive_result( s );
-	if( result == 1 )
-		printf( "The directory was successfully made\n" );
-	else if( result == -1 )
-		printf( "Error in making directory\n" );
-	else if( result == -2 )
-		printf( "The directory already exists on server\n" );
+	result = receive_result(s);
+	
+	if (result == 1) {
+		printf("Successfully created the board\n");
+	} else if (result == -1) {
+		printf("Error creating the board\n");
+	} else if (result == -2) {
+		printf("The board you named already exists.\n");
+	}
+	
 }
+
 
 void remove_dir(int s) {
 	char buf[MAX_LINE];
@@ -552,6 +555,31 @@ void send_instruction(int s, char* message) {
 			fprintf( stderr, "myfrm: error sending message\n" );
 			exit( 1 );
 		}
+	}
+}
+
+void send_name(int s) {
+
+	char buf[MAX_LINE];
+
+	fflush( stdin );
+
+	if ( fgets( buf, MAX_LINE, stdin ) ) {
+		int i;
+		for(i = 0; i < MAX_LINE; i++) {
+			if (buf[i] == '\n' || buf[i] == ' ') {
+				buf[i] = '\0'; 
+				break;
+			}
+		}// set null characters
+
+		if ( send( s, buf, strlen(buf) + 1, 0) == -1 ) {
+			fprintf( stderr, "myfrm: error sending username\n");
+			exit(1);
+		}
+	} else {
+		fprintf( stderr, "myfrm: error, no username received \n");
+		exit(1);
 	}
 }
 

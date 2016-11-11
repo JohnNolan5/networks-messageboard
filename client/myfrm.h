@@ -16,6 +16,7 @@ void list_dir( int );
 void make_dir( int );
 void remove_dir( int );
 void change_dir( int );
+void send_name(int);
 void send_instruction( int, char* );
 uint16_t receive_result( int );
 long receive_result32(int); // changed from uint32_t
