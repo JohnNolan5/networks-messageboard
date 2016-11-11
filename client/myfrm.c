@@ -171,9 +171,6 @@ void handle_action(char* msg, int s, int s_d) {
 		destroy_board( s_d );
 }
 
-void create_board( int s_d ){
-
-}
 
 void leave_message( int s_d ){
 
