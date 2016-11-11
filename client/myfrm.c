@@ -7,6 +7,7 @@
 // usage: myfrm server_name port
 
 #include "myfrm.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -149,36 +150,60 @@ int main( int argc, char* argv[] ){
 
 void handle_action(char* msg, int s, int s_d) {
 	// check for all special 3 char messages
-	if (!strncmp("DLT", msg, 3)) 
-		printf(msg);
-		// delete_board( s_d );
-	else if (!strncmp("LIS", msg, 3))
-		printf(msg);
-		// list_boards( s_d );
-	else if (!strncmp("MSG", msg, 3))
-		printf(msg);
-		//leave_message( s_d );
-	else if (!strncmp("CRT", msg, 3))
-		printf(msg);
-		//create_board( s_d );
-	else if (!strncmp("EDT", msg, 3))
-		printf(msg);
-		//edit_board( s_d );
-	else if (!strncmp("RDB", msg, 3))
-		printf(msg);
-		//read_board( s );
-	else if (!strncmp("APN", msg, 3))
-		printf(msg);
-		//append( s );
-	else if (!strncmp("DWN", msg, 3))
-		printf(msg);
-		//download( s );
-	else if (!strncmp("DST", msg, 3))
-		printf(msg);
-		//destroy( s_d );
-	else if (!strncmp("SHT", msg, 3))
-		printf(msg);
-		//shutdown( s_d );
+	if( !strncmp("CRT", msg, 3) )
+		create_board( s_d );
+	else if( !strncmp("MSG", msg, 3) )
+		leave_message( s_d );
+	else if( !strncmp("DLT", msg, 3) ) 
+		delete_message( s_d );
+	else if( !strncmp("EDT", msg, 3) )
+		edit_message( s_d );
+	else if( !strncmp("LIS", msg, 3) )
+		list_boards( s_d );
+	else if( !strncmp("RDB", msg, 3) )
+		read_board( s );
+	else if( !strncmp("APN", msg, 3) )
+		append_file( s );
+	else if( !strncmp("DWN", msg, 3) )
+		download_file( s );
+	else if( !strncmp("DST", msg, 3) )
+		destroy_board( s_d );
+}
+
+void create_board( int s_d ){
+
+}
+
+void leave_message( int s_d ){
+
+}
+
+void delete_message( int s_d ){
+
+}
+
+void edit_message( int s_d ){
+
+}
+
+void list_boards( int s_d ){
+
+}
+
+void read_board( int s ){
+
+}
+
+void append_file( int s ){
+
+}
+
+void download_file( int s ){
+
+}
+
+void destroy_board( int s ){
+
 }
 
 void request( int s ){
