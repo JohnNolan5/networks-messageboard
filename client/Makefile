@@ -1,7 +1,7 @@
-all:	myftp
+all:	myfrm
 
-myftp:	myftp.c
-	gcc myftp.c -o myftp -lmhash
+myfrm:	myfrm.c
+	gcc myfrm.c -o myfrm -lmhash
 
 clean:
-	rm myftp
+	rm myfrm
