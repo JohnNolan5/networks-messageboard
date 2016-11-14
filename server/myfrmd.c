@@ -251,7 +251,12 @@ void create_board(int s, const char* username) {
 		return;
 		}
 	}
-
+	
+	if (check_board(board_name)) {
+		send_result(s, -2);
+		return;
+	}
+/*
 	while (getline(&board_line, &len, fp) != -1) {
 
 			if (len <= 0) continue;
@@ -265,10 +270,17 @@ void create_board(int s, const char* username) {
 		memset(board_line, 0, strlen(board_line));
 		memset(board_test, 0, strlen(board_test));
 	}
+*/
 	fprintf(fp, "%s\n", board_name); // appends to file or writes at beginning.
 	fclose(fp);
 
 	fp = fopen(board_name, "w+");
+	if (fp == NULL) {
+		fprintf( stderr, "myfrmd: could not open new board\n");
+		send_result(s, -1); // tell client?
+		return;
+	}
+
 	fprintf(fp, "%s\n\n", username);	
 	fclose(fp);
 

@@ -676,7 +676,7 @@ void send_name(int s) {
 			}
 		}// set null characters
 
-		if ( send( s, buf, strlen(buf) + 1, 0) == -1 ) {
+		if ( send( s, buf, MAX_LINE, 0) == -1 ) {
 			fprintf( stderr, "myfrm: error sending name\n");
 			exit(1);
 		}
