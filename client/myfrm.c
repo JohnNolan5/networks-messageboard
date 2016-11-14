@@ -245,10 +245,10 @@ void edit_message( int s_d ){
 }
 
 void list_boards( int s ){
-
-char buf[MAX_LINE+1];
+	char buf[MAX_LINE+1];
 	uint16_t len, netlen = 0;
 	int i;
+	long recvlen;
 
 	buf[MAX_LINE] = '\0';
 	while (netlen == 0) { // sends an empty message, so skip those cases
@@ -261,7 +261,8 @@ char buf[MAX_LINE+1];
 	len = ntohs( netlen );
 	
 	for( i = 0; i < len; i += MAX_LINE ){
-		if( read( s, buf, MAX_LINE ) == -1 ){
+		recvlen = (len - i < MAX_LINE ) ? len-i : MAX_LINE;
+		if( read( s, buf, recvlen ) == -1 ){
 			fprintf( stderr, "myfrm: error receiving listing\n" );
 			return;
 		}
