@@ -152,7 +152,7 @@ int main( int argc, char* argv[] ){
 void handle_action(char* msg, int s, int s_d) {
 	// check for all special 3 char messages
 	if( !strncmp("CRT", msg, 3) )
-		create_board( s );
+		create_board( s ); //TODO: need s_d here, should mak a global address struct or somethin
 	else if( !strncmp("MSG", msg, 3) )
 		leave_message( s_d );
 	else if( !strncmp("DLT", msg, 3) ) 
@@ -160,7 +160,7 @@ void handle_action(char* msg, int s, int s_d) {
 	else if( !strncmp("EDT", msg, 3) )
 		edit_message( s_d );
 	else if( !strncmp("LIS", msg, 3) )
-		list_boards( s_d );
+		list_boards( s ); //TODO: need s_d
 	else if( !strncmp("RDB", msg, 3) )
 		read_board( s );
 	else if( !strncmp("APN", msg, 3) )
@@ -203,8 +203,29 @@ void edit_message( int s_d ){
 
 }
 
-void list_boards( int s_d ){
+void list_boards( int s ){
 
+char buf[MAX_LINE+1];
+	uint16_t len, netlen = 0;
+	int i;
+
+	buf[MAX_LINE] = '\0';
+	while (netlen == 0) { // sends an empty message, so skip those cases
+		if( read( s, &netlen, sizeof(uint16_t) ) == -1 ){
+			fprintf( stderr, "myfrm: error receiving listing size\n" );
+			return;
+		}
+	}
+	
+	len = ntohs( netlen );
+	
+	for( i = 0; i < len; i += MAX_LINE ){
+		if( read( s, buf, MAX_LINE ) == -1 ){
+			fprintf( stderr, "myfrm: error receiving listing\n" );
+			return;
+		}
+		printf( "%s", buf );
+	}
 }
 
 void read_board( int s ){
@@ -476,29 +497,6 @@ void delete_file(int s){
 		printf( "The file does not exist on the server\n" );
 }
 
-void list_dir(int s){
-	char buf[MAX_LINE+1];
-	uint16_t len, netlen = 0;
-	int i;
-
-	buf[MAX_LINE] = '\0';
-	while (netlen == 0) { // sends an empty message, so skip those cases
-		if( read( s, &netlen, sizeof(uint16_t) ) == -1 ){
-			fprintf( stderr, "myfrm: error receiving listing size\n" );
-			return;
-		}
-	}
-	
-	len = ntohs( netlen );
-	
-	for( i = 0; i < len; i += MAX_LINE ){
-		if( read( s, buf, MAX_LINE ) == -1 ){
-			fprintf( stderr, "myfrm: error receiving listing\n" );
-			return;
-		}
-		printf( "%s", buf );
-	}
-}
 
 void remove_dir(int s) {
 	char buf[MAX_LINE];

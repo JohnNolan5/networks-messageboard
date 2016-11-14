@@ -289,7 +289,61 @@ void edit_message( int s ){
 }
 
 void list_boards( int s ){
+	FILE *fp; // pointer to current directory
+	
+	char *buf;
+	char *line;
+	uint16_t len, netlen; // length of message
+	int alcnt = 1; // increment size (count allocs)
+	long sendlen;
 
+	// new method for continually allocating data
+	
+	fp = fopen("boards.txt", "r+");
+	if (fp == NULL){
+		fprintf( stderr, "myfrmd: error opening boards file\n" );
+		exit(-1);
+	}
+
+	buf = malloc(sizeof(char)*MAX_LINE);
+	buf[0] = '\0';
+
+	while(fgets(line, MAX_LINE, fp) != NULL) {
+		if (MAX_LINE*alcnt <= (strlen(buf) + strlen(line) + 1)) {
+			// size continually increments by the data added
+			buf = realloc(buf, sizeof(char)*MAX_LINE*(++alcnt));
+		}
+		strcat(buf, line);
+		// allocate more memory
+	} // buffer keeps growing on the heap until we can send it
+	
+	if (fclose(fp) == -1) {
+		fprintf( stderr, "myfrmd: could not close directory\n" );
+	}
+
+	//send message length
+	len = strlen(buf) + 1;
+	netlen = htons( len );
+	if( write( s, &netlen, sizeof(uint16_t) ) == -1 ){
+		fprintf( stderr, "myfrmd: error sending length\n" );
+		free( buf );
+		exit(-1);
+	}
+
+	// loop through for large strings
+	int i;
+	for (i = 0; i < len; i+= MAX_LINE) { 
+		// check cases where we need to send more than one part
+		sendlen = (len-i < MAX_LINE) ? len-i : MAX_LINE;
+		if( write(s, buf + i, sendlen) == -1 ){
+			fprintf( stderr, "myfrmd: error sending directory listing\n" );
+			free( buf );
+			exit(-1);
+		}
+	}
+	// client can concatenate all these strings and stop listening once the length equals the announced length
+
+	free(buf);
 }
 
 void read_board( int s ){
@@ -548,63 +602,6 @@ void delete_file(int s) {
 	free( file );
 }
 
-int list_dir(int s) {
-	DIR *dp; // pointer to current directory
-	struct dirent *dep; // information about directory
-	char *buf;
-	uint16_t len, netlen; // length of message
-	int alcnt = 1; // increment size (count allocs)
-	long sendlen;
-
-	// new method for continually allocating data
-	
-	dp = opendir("./"); // open working directory
-	if (dp == NULL){
-		fprintf( stderr, "myfrmd: error opening directory\n" );
-		return -1;
-	}
-
-	buf = malloc(sizeof(char)*MAX_LINE);
-	buf[0] = '\0';
-
-	while((dep = readdir(dp)) != NULL) {
-		if (MAX_LINE*alcnt <= (strlen(buf) + strlen(dep->d_name) + 1)) {
-			// size continually increments by the data added
-			buf = realloc(buf, sizeof(char)*MAX_LINE*(++alcnt));
-		}
-		strcat(buf, dep->d_name);
-		strcat(buf, "\n"); 
-		// allocate more memory
-	} // buffer keeps growing on the heap until we can send it
-	
-	if (closedir(dp) == -1) {
-		fprintf( stderr, "myfrmd: could not close directory\n" );
-	}
-
-	//send message length
-	len = strlen(buf) + 1;
-	netlen = htons( len );
-	if( write( s, &netlen, sizeof(uint16_t) ) == -1 ){
-		fprintf( stderr, "myfrmd: error sending length\n" );
-		free( buf );
-		return -1;
-	}
-
-	// loop through for large strings
-	int i;
-	for (i = 0; i < len; i+= MAX_LINE) { 
-		// check cases where we need to send more than one part
-		sendlen = (len-i < MAX_LINE) ? len-i : MAX_LINE;
-		if( write(s, buf + i, sendlen) == -1 ){
-			fprintf( stderr, "myfrmd: error sending directory listing\n" );
-			free( buf );
-			return -1;
-		}
-	}
-	// client can concatenate all these strings and stop listening once the length equals the announced length
-
-	free(buf);
-}
 
 void remove_dir(int s) {
 	char* dir;
