@@ -663,7 +663,6 @@ void send_instruction(int s, char* message) {
 }
 
 void send_name(int s) {
-
 	char buf[MAX_LINE];
 
 	fflush( stdin );
