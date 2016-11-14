@@ -368,7 +368,6 @@ void edit_message( int s ){
 }
 
 void list_boards( int s ){
-
 	FILE *fp; // pointer to current directory
 	char *buf;
 	char *line;
@@ -519,7 +518,18 @@ void download_file( int s ){
 }
 
 void destroy_board( int s ){
+	return;
 
+	char board_name[MAX_LINE];
+	bool board_exits;
+
+	if (read(s, board_name, MAX_LINE) == -1) {
+		fprintf( stderr, "myfrmd: error receiving name of new board\n");
+		exit( 1 );
+	}
+
+	board_exists = check_board( board_name );
+	
 }
 
 void request( int s ){
