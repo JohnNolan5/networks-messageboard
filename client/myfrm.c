@@ -154,7 +154,7 @@ void handle_action(char* msg, int s, int s_d) {
 	if( !strncmp("CRT", msg, 3) )
 		create_board( s ); //TODO: need s_d here, should mak a global address struct or somethin
 	else if( !strncmp("MSG", msg, 3) )
-		leave_message( s_d );
+		leave_message( s ); //TODO: should be s_d
 	else if( !strncmp("DLT", msg, 3) ) 
 		delete_message( s_d );
 	else if( !strncmp("EDT", msg, 3) )
@@ -209,24 +209,26 @@ void leave_message( int s_d ){
 	// send the file name over
 	send_instruction( s_d, fileName );
 
-	printf( "Enter the name of the board where you want to post a message: " );
+	printf( "Enter your message: " );
 	fflush( stdin );
-	fgets( fileName, MAX_LINE, stdin );
+	fgets( message, MAX_LINE, stdin );
 // trim the \n off the end
-	if( strlen(fileName) < MAX_LINE )
-		fileName[strlen(fileName)-1] = '\0';
+	if( strlen(message) < MAX_LINE )
+		message[strlen(message)-1] = '\0';
 	else
-		fileName[MAX_LINE-1] = '\0';
+		message[MAX_LINE-1] = '\0';
 
 	// send the file name over
-	send_instruction( s_d, fileName );
+	send_instruction( s_d, message );
 
 	
 	result = receive_result( s_d);
 
 	// both are -1
-	if( result == -1 || result = 4294967295 ){
+	if( result == -1 || result == 4294967295 ){
 		printf( "The board does not exist\n" );
+	} else if (result == -2) {
+		printf( "Server error: board could not open\n");
 	} else if (result == 1) {
 		printf("Message posted successfully\n");
 	} else {

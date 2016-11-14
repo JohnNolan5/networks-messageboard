@@ -26,7 +26,8 @@
 void handle_input(char* msg, int s, const char *username);
 
 void create_board(int, const char *username);
-void leave_message(int);
+void leave_message(int, const char *);
+bool check_board(const char*);
 void delete_message(int);
 void edit_message(int);
 void list_boards(int);
@@ -211,7 +212,7 @@ void handle_input(char* msg, int s, const char* username) {
 	if( !strncmp("CRT", msg, 3) )
 		create_board( s , username);
 	else if( !strncmp("MSG", msg, 3) )
-		leave_message( s );
+		leave_message( s, username );
 	else if( !strncmp("DLT", msg, 3) )
 		delete_message( s );
 	else if( !strncmp("EDT", msg, 3) )
@@ -276,8 +277,74 @@ void create_board(int s, const char* username) {
 	
 }
 
-void leave_message( int s ){
+void leave_message( int s , const char* username){
+	char *fileName;
+	char *message;
+	FILE* fp;
+	bool board_exists = false;
 
+	receive_instruction(s, &fileName);
+	
+	receive_instruction(s, &message);
+	
+	printf("Adding \"%s\" to \"%s\"\n", message, fileName);
+	board_exists = check_board(fileName);
+
+	if (board_exists) {
+		printf("board exists");
+		fp = fopen(fileName, "a+");
+		if (fp == NULL) {
+			fprintf(stderr, "myfrmd: Trouble opening the board\n");
+			send_result(s, -2);
+			free(fileName);
+			free(message);
+			return;
+		}
+		fprintf(fp, "%s\n%s\n\n", message, username);
+		fclose(fp);
+		send_result(s, 1);
+
+	} else {
+		send_result(s, -1); // file does not exist
+	}
+	//TODO: mapy we should call strcpy on receive_instruction reference so we dont keep allocating to and freeing it outside. 
+	free(fileName);
+	free(message);
+
+}
+
+bool check_board(const char* board_name) {
+	
+	char *board_line = NULL;
+	char *board_test;
+	FILE *fp;
+	size_t len;
+
+	printf("checking boards.txt\n");
+	fp = fopen("boards.txt", "r+");
+
+	if (fp == NULL) {
+		return false;
+	}
+	
+	printf("getting board_line\n");
+	while (getline(&board_line, &len, fp) != -1) { //SEGFAULT
+
+		printf("check: %s\n", board_line);
+		if (strlen(board_line) <= 0) continue;
+
+		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
+
+		if (strcmp(board_test, board_name) == 0) {
+		// filename found
+			fclose(fp);
+			return true;
+		}
+	}
+	
+	fclose(fp);
+
+	return false;
 }
 
 void delete_message( int s ){
@@ -289,8 +356,8 @@ void edit_message( int s ){
 }
 
 void list_boards( int s ){
+
 	FILE *fp; // pointer to current directory
-	
 	char *buf;
 	char *line;
 	uint16_t len, netlen; // length of message
