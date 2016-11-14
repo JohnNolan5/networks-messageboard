@@ -328,7 +328,7 @@ void leave_message( int s , const char* username){
 bool check_board(const char* board_name) {
 	
 	char *board_line = NULL;
-	char *board_test;
+	char *board_test = NULL;
 	FILE *fp;
 	size_t len;
 
@@ -341,17 +341,22 @@ bool check_board(const char* board_name) {
 	
 	printf("getting board_line\n");
 	while (getline(&board_line, &len, fp) != -1) { //SEGFAULT
-
-		printf("check: %s\n", board_line);
-		if (strlen(board_line) <= 0) continue;
+		
+		if (strcmp(board_line, "\n") == 0) continue;
+		printf("check: %s, %i\n", board_line, len);		
 
 		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
+
+		if (strlen(board_line) <= 0) continue;
 
 		if (strcmp(board_test, board_name) == 0) {
 		// filename found
 			fclose(fp);
 			return true;
 		}
+		memset(board_line, 0, strlen(board_line));
+		memset(board_test, 0, strlen(board_test));
+
 	}
 	
 	fclose(fp);
@@ -521,7 +526,7 @@ void destroy_board( int s ){
 	return;
 
 	char board_name[MAX_LINE];
-	bool board_exits;
+	bool board_exists;
 
 	if (read(s, board_name, MAX_LINE) == -1) {
 		fprintf( stderr, "myfrmd: error receiving name of new board\n");
