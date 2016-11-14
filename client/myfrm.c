@@ -193,6 +193,45 @@ void create_board(int s) {
 
 void leave_message( int s_d ){
 
+	char fileName[MAX_LINE + 1];
+	char message[MAX_LINE + 1];
+	uint16_t result, resultNet;
+
+	printf( "Enter the name of the board where you want to post a message: " );
+	fflush( stdin );
+	fgets( fileName, MAX_LINE, stdin );
+// trim the \n off the end
+	if( strlen(fileName) < MAX_LINE )
+		fileName[strlen(fileName)-1] = '\0';
+	else
+		fileName[MAX_LINE-1] = '\0';
+
+	// send the file name over
+	send_instruction( s_d, fileName );
+
+	printf( "Enter the name of the board where you want to post a message: " );
+	fflush( stdin );
+	fgets( fileName, MAX_LINE, stdin );
+// trim the \n off the end
+	if( strlen(fileName) < MAX_LINE )
+		fileName[strlen(fileName)-1] = '\0';
+	else
+		fileName[MAX_LINE-1] = '\0';
+
+	// send the file name over
+	send_instruction( s_d, fileName );
+
+	
+	result = receive_result( s_d);
+
+	// both are -1
+	if( result == -1 || result = 4294967295 ){
+		printf( "The board does not exist\n" );
+	} else if (result == 1) {
+		printf("Message posted successfully\n");
+	} else {
+		fprintf(stderr, "myfrm: invalid message posting result\n");
+	}
 }
 
 void delete_message( int s_d ){
@@ -232,7 +271,7 @@ void read_board( int s ){
 	char fileName[MAX_LINE];
 	char buf[MAX_LINE+1];
 	long fileLen, fileLenNet;
-	FILE* fp;
+	//FILE* fp;
 
 	printf( "Enter the file name to request: " );
 	fflush( stdin );
