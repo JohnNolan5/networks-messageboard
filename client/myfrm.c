@@ -152,7 +152,7 @@ int main( int argc, char* argv[] ){
 void handle_action(char* msg, int s, int s_d) {
 	// check for all special 3 char messages
 	if( !strncmp("CRT", msg, 3) )
-		create_board( s_d );
+		create_board( s );
 	else if( !strncmp("MSG", msg, 3) )
 		leave_message( s_d );
 	else if( !strncmp("DLT", msg, 3) ) 
@@ -169,6 +169,25 @@ void handle_action(char* msg, int s, int s_d) {
 		download_file( s );
 	else if( !strncmp("DST", msg, 3) )
 		destroy_board( s_d );
+}
+
+void create_board(int s) {
+	short result;
+	FILE* fp;
+
+	printf("Enter the name of your board: \n");
+	send_name(s);
+
+	result = receive_result(s);
+	
+	if (result == 1) {
+		printf("Successfully created the board\n");
+	} else if (result == -1) {
+		printf("Error creating the board\n");
+	} else if (result == -2) {
+		printf("The board you named already exists.\n");
+	}
+	
 }
 
 
@@ -481,26 +500,6 @@ void list_dir(int s){
 	}
 }
 
-void create_board(int s) {
-	short result;
-	FILE* fp;
-
-	printf("Enter the name of your board: \n");
-	send_name(s);
-
-	result = receive_result(s);
-	
-	if (result == 1) {
-		printf("Successfully created the board\n");
-	} else if (result == -1) {
-		printf("Error creating the board\n");
-	} else if (result == -2) {
-		printf("The board you named already exists.\n");
-	}
-	
-}
-
-
 void remove_dir(int s) {
 	char buf[MAX_LINE];
 	short result;
@@ -596,11 +595,11 @@ void send_name(int s) {
 		}// set null characters
 
 		if ( send( s, buf, strlen(buf) + 1, 0) == -1 ) {
-			fprintf( stderr, "myfrm: error sending username\n");
+			fprintf( stderr, "myfrm: error sending name\n");
 			exit(1);
 		}
 	} else {
-		fprintf( stderr, "myfrm: error, no username received \n");
+		fprintf( stderr, "myfrm: error, no name received \n");
 		exit(1);
 	}
 }

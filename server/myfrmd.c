@@ -228,6 +228,53 @@ void handle_input(char* msg, int s, const char* username) {
 		destroy_board( s );
 }
 
+void create_board(int s, const char* username) {
+
+	char board_name[MAX_LINE];	
+	char *board_test;
+	char *board_line;
+	size_t len;
+	FILE *fp;
+
+	if (read(s, board_name, MAX_LINE) == -1) {
+		fprintf( stderr, "myfrmd: error receiving name of new board\n");
+		exit( 1 );
+	}
+	fp = fopen("boards.txt", "ra+");
+	if (fp == NULL) {
+		fp = fopen("boards.txt", "w+");
+		// no boards existing, tell it its new
+		if (fp == NULL) {
+		fprintf( stderr, "myfrmd: could not open boards file\n");
+		send_result(s, -1); // tell client?
+		return;
+		}
+	}
+
+	while (getline(&board_line, &len, fp) != -1) {
+
+			if (len <= 0) continue;
+
+			board_test = strtok(board_line, " \n");
+
+			if (strcmp(board_test, board_name) == 0) {
+				send_result(s, -2); // board exists
+				return;
+			}
+		memset(board_line, 0, strlen(board_line));
+		memset(board_test, 0, strlen(board_test));
+	}
+	fprintf(fp, "%s\n", board_name); // appends to file or writes at beginning.
+	fclose(fp);
+
+	fp = fopen(board_name, "w+");
+	fclose(fp);
+
+	fprintf(fp, "%s\n\n", username);
+	send_result(s, 1);
+	return;
+	
+}
 
 void leave_message( int s ){
 
@@ -629,49 +676,7 @@ int check_dir(char *dir) { // checks that the directory exists
 	}
 }
 
-void create_board(int s, const char* username) {
 
-	char board_name[MAX_LINE];	
-	char *board_test;
-	char *board_line;
-	size_t len;
-	FILE *fp;
-
-	if (read(s, board_name, MAX_LINE) == -1) {
-		fprintf( stderr, "myfrmd: error receiving name of new board\n");
-		exit( 1 );
-	}
-	fp = fopen("boards.txt", "ra+");
-	if (fp == NULL) {
-		fp = fopen("boards.txt", "w+");
-		// no boards existing, tell it its new
-		if (fp == NULL) {
-		fprintf( stderr, "myfrmd: could not open boards file\n");
-		send_result(s, -1); // tell client?
-		return;
-		}
-	}
-
-	while (getline(&board_line, &len, fp) != -1) {
-
-			if (len <= 0) continue;
-
-			board_test = strtok(board_line, " \n");
-
-			if (strcmp(board_test, board_name) == 0) {
-				send_result(s, -2); // board exists
-				return;
-			}
-		memset(board_line, 0, strlen(board_line));
-		memset(board_test, 0, strlen(board_test));
-	}
-	fprintf(fp, "%s\n", board_name); // appends to file or writes at beginning.
-	fp = fopen(board_name, "w+");
-	fprintf(fp, "%s\n\n", username);
-	send_result(s, 1);
-	return;
-	
-}
 
 void make_dir(int s) {
 	char* dir; 
