@@ -268,9 +268,9 @@ void create_board(int s, const char* username) {
 	fclose(fp);
 
 	fp = fopen(board_name, "w+");
+	fprintf(fp, "%s\n\n", username);	
 	fclose(fp);
 
-	fprintf(fp, "%s\n\n", username);
 	send_result(s, 1);
 	return;
 	
