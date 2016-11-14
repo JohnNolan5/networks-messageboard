@@ -197,6 +197,8 @@ void leave_message( int s_d ){
 	char message[MAX_LINE + 1];
 	uint16_t result, resultNet;
 
+	fileName[0] = '\0';
+	message[0] = '\0';
 	printf( "Enter the name of the board where you want to post a message: " );
 	fflush( stdin );
 	fgets( fileName, MAX_LINE, stdin );

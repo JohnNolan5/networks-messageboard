@@ -241,8 +241,15 @@ void create_board(int s, const char* username) {
 		fprintf( stderr, "myfrmd: error receiving name of new board\n");
 		exit( 1 );
 	}
-	fp = fopen("boards.txt", "ra+");
+
+	if (check_board(board_name)) {
+		send_result(s, -2); // already exists
+		return;
+	}
+	
+	fp = fopen("boards.txt", "a+");
 	if (fp == NULL) {
+		printf("creating new boards.txt\n");
 		fp = fopen("boards.txt", "w+");
 		// no boards existing, tell it its new
 		if (fp == NULL) {
@@ -252,10 +259,7 @@ void create_board(int s, const char* username) {
 		}
 	}
 	
-	if (check_board(board_name)) {
-		send_result(s, -2);
-		return;
-	}
+
 /*
 	while (getline(&board_line, &len, fp) != -1) {
 
@@ -340,7 +344,7 @@ bool check_board(const char* board_name) {
 	}
 	
 	printf("getting board_line\n");
-	while (getline(&board_line, &len, fp) != -1) { //SEGFAULT
+	while (getline(&board_line, &len, fp) != -1) { 
 		
 		if (strcmp(board_line, "\n") == 0) continue;
 		printf("check: %s, %i\n", board_line, len);		
