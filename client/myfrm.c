@@ -229,6 +229,49 @@ char buf[MAX_LINE+1];
 }
 
 void read_board( int s ){
+	char fileName[MAX_LINE];
+	char buf[MAX_LINE+1];
+	long fileLen, fileLenNet;
+	FILE* fp;
+
+	printf( "Enter the file name to request: " );
+	fflush( stdin );
+	fgets( fileName, MAX_LINE, stdin );
+// trim the \n off the end
+	if( strlen(fileName) < MAX_LINE )
+		fileName[strlen(fileName)-1] = '\0';
+	else
+		fileName[MAX_LINE-1] = '\0';
+
+	// send the file name over
+	send_instruction( s, fileName );
+
+	if( read( s, &fileLenNet, sizeof(long) ) == -1 ){
+		fprintf( stderr, "myfrm: error receiving listing size\n" );
+		return;
+	}
+	
+	fileLen = ntohl( fileLenNet );
+
+	// both are -1
+	if( fileLen == -1 || fileLen == 4294967295 ){
+		printf( "File does not exist\n" );
+		return;
+	} else if (fileLen == 0) {
+		printf("\n");
+		return;
+	}
+
+	buf[MAX_LINE] = '\0';
+		
+	int i;
+	for( i = 0; i < fileLen; i += MAX_LINE ){
+		if( read( s, buf, MAX_LINE ) == -1 ){
+			fprintf( stderr, "myfrm: error receiving listing\n" ); 
+			return;
+		}
+		printf( "%s", buf );
+	}
 
 }
 

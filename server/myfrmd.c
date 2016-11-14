@@ -347,7 +347,88 @@ void list_boards( int s ){
 }
 
 void read_board( int s ){
+	//char c;
+	char* fileName;
+//	char* fileText;
+//	uint16_t result;
+	long fileLen;
+	long fileLenNet, sendlen;
+	//struct stat fileStats;
+	//MHASH compute;
+	//char hash[16];
+	char line[MAX_LINE+1];
+	char *buf;
+	int alcnt = 1;
+	FILE* fp;
 
+	if (receive_instruction(s, &fileName) <= 0) {
+		fprintf( stderr, "myfrmd: instruction receive error\n" );
+		free( fileName );
+		return;
+	}
+
+	fp = fopen(fileName, "r+");
+	if (fp == NULL) {
+		fileLen = -1;
+	// send the file size to the client
+	} else {
+		buf = malloc(sizeof(char)*MAX_LINE);
+		buf[0] = '\0';
+		printf("Entering while loop\n");
+		while(fgets(line, MAX_LINE, fp)!= NULL && !feof(fp)) {
+			printf("Checking length\n");
+			if (MAX_LINE*alcnt <= (strlen(buf) + strlen(line) + 1)) {
+				// size continually increments by the data added
+				buf = realloc(buf, sizeof(char)*MAX_LINE*(++alcnt));
+			}
+
+			if (feof(fp)) break;
+
+			printf("concatenating\n");
+
+			strcat(buf, line);
+			
+		} // buffer keeps growing on the heap until we can send it
+
+		fileLen = strlen(buf)+1;	
+	}
+	free(fileName);
+
+	printf("Sending length: %li\n", fileLen);
+	//send message length
+	fileLenNet = htonl( fileLen );
+	if( write( s, &fileLenNet, sizeof(long) ) == -1 ){
+		fprintf( stderr, "myfrmd: error sending length\n" );
+		free( buf );
+		exit(-1);
+	}
+
+	printf("checking len.");
+	// we're done if the file didn't exist or is empty
+	if(fileLen == -1 || fileLen == 0 ){
+		return;
+	}
+
+	if (fclose(fp) == -1) {
+		fprintf( stderr, "myfrmd: could not close directory\n" );
+	}
+
+	// loop through for large strings
+	int i;
+	for (i = 0; i < fileLen; i+= MAX_LINE) { 
+		// check cases where we need to send more than one part
+		sendlen = (fileLen-i < MAX_LINE) ? fileLen-i : MAX_LINE;
+		printf("writing.");
+		if( write(s, buf + i, sendlen) == -1 ){
+			fprintf( stderr, "myfrmd: error sending directory listing\n" );
+			free( buf );
+			exit(-1);
+		}
+	}
+	printf("done writing.");
+	// client can concatenate all these strings and stop listening once the length equals the announced length
+
+	free(buf);
 }
 
 void append_file( int s ){
