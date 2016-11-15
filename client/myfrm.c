@@ -657,8 +657,8 @@ void download_file( int s ){
 	}
 	len = ntohl( len );
 
-	printf("got length: %li", len);
 	if (len <= 0) {
+		printf("The server could not open that file\n");
 		fclose(fp);
 		return;
 	}

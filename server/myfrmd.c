@@ -959,19 +959,19 @@ void download_file( int s ){
 	strcat(newFile, "-");
 	strcat(newFile, fileName); // boardName-fileName
 	if( (board = check_board(boardName)) && (file = check_board_file( boardName, fileName )) ){
-		printf("yes board! %s \n", newFile);
-		if( access( fileName, F_OK ) != -1 ) {
+		printf("yes board! %s\n", newFile);
+		if( access( newFile, F_OK ) != -1 ) {
 			stat(newFile, &fileStats);
 			fileLen = fileStats.st_size;
 			printf("size: %li", fileLen);
 		} else{
 			printf( "could not open the file\n" );
-			fileLen = -1;
+			fileLen = 0;
 		}
 
 	} else {
 		printf("no board!: %s: %i, %s: %i\n",boardName,  board, fileName, file);
-		fileLen = -1;
+		fileLen = 0;
 	}
 	
 	// send the length of the file 
@@ -988,7 +988,7 @@ void download_file( int s ){
 
 
 	fileText = malloc( fileLen );
-	fp = fopen(fileName, "r");
+	fp = fopen(newFile, "r");
 	for ( i = 0; i < fileLen; i++) {
 		c = fgetc( fp );
 		fileText[i] = c;
