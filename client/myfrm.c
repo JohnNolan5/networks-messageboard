@@ -253,14 +253,16 @@ void list_boards( int s ){
 	long recvlen;
 
 	buf[MAX_LINE] = '\0';
-	while (netlen == 0) { // sends an empty message, so skip those cases
-		if( read( s, &netlen, sizeof(uint16_t) ) == -1 ){
-			fprintf( stderr, "myfrm: error receiving listing size\n" );
-			return;
-		}
+	if( read( s, &netlen, sizeof(uint16_t) ) == -1 ){
+		fprintf( stderr, "myfrm: error receiving listing size\n" );
+		return;
 	}
 	
 	len = ntohs( netlen );
+	
+	if (len == 0) {
+		printf("\n"); return;
+	}
 	
 	for( i = 0; i < len; i += MAX_LINE ){
 		recvlen = (len - i < MAX_LINE ) ? len-i : MAX_LINE;

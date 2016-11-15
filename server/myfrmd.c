@@ -300,8 +300,9 @@ void leave_message( int s , const char* username){
 	bool board_exists = false;
 
 	receive_instruction(s, &fileName);
-	
-	receive_instruction(s, &message);
+	printf("Received: %s\n", fileName);
+	receive_instruction(s, &message);	
+	printf("Received: %s\n", message);
 	
 	printf("Adding \"%s\" to \"%s\"\n", message, fileName);
 	board_exists = check_board(fileName);
@@ -334,8 +335,9 @@ bool check_board(const char* board_name) {
 	char *board_line = NULL;
 	char *board_test = NULL;
 	FILE *fp;
-	size_t len;
+	size_t len = 0;
 
+	
 	printf("checking boards.txt\n");
 	fp = fopen("boards.txt", "r+");
 
@@ -348,8 +350,8 @@ bool check_board(const char* board_name) {
 		
 		if (strcmp(board_line, "\n") == 0) continue;
 		printf("check: %s, %i\n", board_line, len);		
-
 		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
+		printf("tok succeed: %s\n", board_test);
 
 		if (strlen(board_line) <= 0) continue;
 
@@ -359,10 +361,11 @@ bool check_board(const char* board_name) {
 			return true;
 		}
 		memset(board_line, 0, strlen(board_line));
+		board_line = NULL;
 		memset(board_test, 0, strlen(board_test));
+		board_test = NULL;
 
 	}
-	
 	fclose(fp);
 
 	return false;
@@ -388,8 +391,13 @@ void list_boards( int s ){
 	
 	fp = fopen("boards.txt", "r+");
 	if (fp == NULL){
-		fprintf( stderr, "myfrmd: error opening boards file\n" );
-		exit(-1);
+		len = 0;
+		netlen = htons( len );
+		if( write( s, &netlen, sizeof(uint16_t) ) == -1 ){
+			fprintf( stderr, "myfrmd: error sending length\n" );
+			exit(-1);
+		}
+		return;
 	}
 
 	buf = malloc(sizeof(char)*MAX_LINE);
