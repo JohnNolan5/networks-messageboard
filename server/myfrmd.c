@@ -352,6 +352,7 @@ bool check_board_file(const char* board_name, const char* file_name) {
 
 void add_file_name(const char* board_name, const char* file_name) {
 	char *board_line = NULL;
+	char board_full[MAX_LINE];
 	char *board_test = NULL;
 	FILE* fpOld;
 	FILE* fpNew;
@@ -370,6 +371,8 @@ void add_file_name(const char* board_name, const char* file_name) {
 			fprintf( fpNew, "\n" );
 			continue;
 		}
+		strncpy(board_full, board_line, strlen(board_line)-1);
+	
 
 		board_test = strtok(board_line, " \n");
 
@@ -377,15 +380,17 @@ void add_file_name(const char* board_name, const char* file_name) {
 			continue;
 
 		if (strcmp(board_test, board_name) == 0) {
-			strcat(board_line, " ");
-			strcat(board_line, file_name);
+			strcat(board_full, " ");
+			strcat(board_full, file_name);		
 		}
-		fprintf( fpNew, "%s\n", board_line ); 
+
+		fprintf( fpNew, "%s\n", board_full); 
 
 		memset(board_line, 0, strlen(board_line));
 		board_line = NULL;
 		memset(board_test, 0, strlen(board_test));
 		board_test = NULL;
+		memset(board_full, 0, strlen(board_full));
 	}
 
 	fclose(fpOld);
