@@ -336,7 +336,7 @@ void destroy_board( int s ){
 	char boardName[MAX_LINE];
 	char result[1];
 
-	printf( "Enter the board name to read: " );
+	printf( "Enter the board name to destroy: " );
 	fflush( stdin );
 	fgets( boardName, MAX_LINE, stdin );
 
@@ -351,9 +351,7 @@ void destroy_board( int s ){
 		return;
 	}
 
-	printf( "about to receive" );
 	recvfrom( s_d, result, 1, 0, (struct sockaddr*)&s_in, &addr_len );
-	printf( "result: %d\n", result[0] );
 	
 	if( !result[0] ){
 		printf( "board deleted successfully\n" );

@@ -255,28 +255,12 @@ void create_board(int s, const char* username) {
 		fp = fopen("boards.txt", "w+");
 		// no boards existing, tell it its new
 		if (fp == NULL) {
-		fprintf( stderr, "myfrmd: could not open boards file\n");
-		send_result(s, -1); // tell client?
-		return;
+			fprintf( stderr, "myfrmd: could not open boards file\n");
+			send_result(s, -1); // tell client?
+			return;
 		}
 	}
 	
-
-/*
-	while (getline(&board_line, &len, fp) != -1) {
-
-			if (len <= 0) continue;
-
-			board_test = strtok(board_line, " \n");
-
-			if (strcmp(board_test, board_name) == 0) {
-				send_result(s, -2); // board exists
-				return;
-			}
-		memset(board_line, 0, strlen(board_line));
-		memset(board_test, 0, strlen(board_test));
-	}
-*/
 	fprintf(fp, "%s\n", board_name); // appends to file or writes at beginning.
 	fclose(fp);
 
@@ -371,34 +355,43 @@ bool check_board(const char* board_name) {
 
 void delete_board_name(const char* board_name) {	
 	char *board_line = NULL;
-	char *board_test;
-	FILE *fpOld;
+	char *board_test = NULL;
+	FILE* fpOld;
 	FILE* fpNew;
-	size_t len;
+	size_t len = 0;
 
 	fpOld = fopen("boards.txt", "r");
 	fpNew = fopen( "tmpboards.txt", "w");
-
+	
 	if( !fpOld || !fpNew ){
 		return;
 	}
 	
-	while (getline(&board_line, &len, fpOld) != -1) {
-		if (strlen(board_line) <= 0){
-			continue;
+	while (getline(&board_line, &len, fpOld) != -1) { 	
+		if (strcmp(board_line, "\n") == 0){
 			fprintf( fpNew, "\n" );
+			continue;
 		}
 
-		board_test = strtok(board_line, " \n");
+		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
+
+		if (strlen(board_line) <= 0)
+			continue;
 
 		if (strcmp(board_test, board_name) == 0) {
 			continue;
 		}
+		fprintf( fpNew, "%s\n", board_line ); 
 
-		fprintf( fpNew, "%s", board_line );
+		memset(board_line, 0, strlen(board_line));
+		board_line = NULL;
+		memset(board_test, 0, strlen(board_test));
+		board_test = NULL;
 	}
+
 	fclose(fpOld);
 	fclose(fpNew);
+
 	remove("boards.txt");
 	rename("tmpboards.txt", "boards.txt");
 }
@@ -590,9 +583,7 @@ void destroy_board( int s ){
 		result[0] = 1;
 	}
 
-	printf( "about to send\n" );
 	sendto( s_d, result, 1, 0, (struct sockaddr*)&s_in, sizeof( struct sockaddr ) );
-	printf( "sent\n" );
 }
 
 void request( int s ){
