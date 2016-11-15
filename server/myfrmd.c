@@ -244,8 +244,15 @@ void create_board(int s, const char* username) {
 		fprintf( stderr, "myfrmd: error receiving name of new board\n");
 		exit( 1 );
 	}
-	fp = fopen("boards.txt", "ra+");
+
+	if (check_board(board_name)) {
+		send_result(s, -2); // already exists
+		return;
+	}
+	
+	fp = fopen("boards.txt", "a+");
 	if (fp == NULL) {
+		printf("creating new boards.txt\n");
 		fp = fopen("boards.txt", "w+");
 		// no boards existing, tell it its new
 		if (fp == NULL) {
@@ -254,7 +261,9 @@ void create_board(int s, const char* username) {
 		return;
 		}
 	}
+	
 
+/*
 	while (getline(&board_line, &len, fp) != -1) {
 
 			if (len <= 0) continue;
@@ -268,10 +277,17 @@ void create_board(int s, const char* username) {
 		memset(board_line, 0, strlen(board_line));
 		memset(board_test, 0, strlen(board_test));
 	}
+*/
 	fprintf(fp, "%s\n", board_name); // appends to file or writes at beginning.
 	fclose(fp);
 
 	fp = fopen(board_name, "w+");
+	if (fp == NULL) {
+		fprintf( stderr, "myfrmd: could not open new board\n");
+		send_result(s, -1); // tell client?
+		return;
+	}
+
 	fprintf(fp, "%s\n\n", username);	
 	fclose(fp);
 
@@ -287,8 +303,9 @@ void leave_message( int s , const char* username){
 	bool board_exists = false;
 
 	receive_instruction(s, &fileName);
-	
-	receive_instruction(s, &message);
+	printf("Received: %s\n", fileName);
+	receive_instruction(s, &message);	
+	printf("Received: %s\n", message);
 	
 	printf("Adding \"%s\" to \"%s\"\n", message, fileName);
 	board_exists = check_board(fileName);
@@ -318,30 +335,47 @@ void leave_message( int s , const char* username){
 
 bool check_board(const char* board_name) {	
 	char *board_line = NULL;
-	char *board_test;
+	char *board_test = NULL;
 	FILE *fp;
-	size_t len;
+	size_t len = 0;
 
+<<<<<<< HEAD
 	fp = fopen("boards.txt", "r");
+=======
+	
+	printf("checking boards.txt\n");
+	fp = fopen("boards.txt", "r+");
+>>>>>>> 471f52e46b2351094829acc10d7580fe5484ba91
 
 	if (fp == NULL) {
 		return false;
 	}
 	
+<<<<<<< HEAD
 	while (getline(&board_line, &len, fp) != -1) { //SEGFAULT
-
-		printf("check: %s\n", board_line);
-		if (strlen(board_line) <= 0) continue;
-
+=======
+	printf("getting board_line\n");
+	while (getline(&board_line, &len, fp) != -1) { 
+		
+		if (strcmp(board_line, "\n") == 0) continue;
+		printf("check: %s, %i\n", board_line, len);		
 		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
+		printf("tok succeed: %s\n", board_test);
+>>>>>>> 471f52e46b2351094829acc10d7580fe5484ba91
+
+		if (strlen(board_line) <= 0) continue;
 
 		if (strcmp(board_test, board_name) == 0) {
 		// filename found
 			fclose(fp);
 			return true;
 		}
+		memset(board_line, 0, strlen(board_line));
+		board_line = NULL;
+		memset(board_test, 0, strlen(board_test));
+		board_test = NULL;
+
 	}
-	
 	fclose(fp);
 	return false;
 }
@@ -400,8 +434,13 @@ void list_boards( int s ){
 	
 	fp = fopen("boards.txt", "r+");
 	if (fp == NULL){
-		fprintf( stderr, "myfrmd: error opening boards file\n" );
-		exit(-1);
+		len = 0;
+		netlen = htons( len );
+		if( write( s, &netlen, sizeof(uint16_t) ) == -1 ){
+			fprintf( stderr, "myfrmd: error sending length\n" );
+			exit(-1);
+		}
+		return;
 	}
 
 	buf = malloc(sizeof(char)*MAX_LINE);
@@ -539,10 +578,8 @@ void download_file( int s ){
 }
 
 void destroy_board( int s ){
-	char* board_name;
+	char board_name[MAX_LINE];
 	bool board_exists;
-	char result[1];
-	int addr_len;
 
 	// get the board name from the client
 	if (receive_instruction(s, &board_name) <= 0) {

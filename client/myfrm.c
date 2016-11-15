@@ -199,6 +199,8 @@ void leave_message( int s_d ){
 	char message[MAX_LINE + 1];
 	uint16_t result, resultNet;
 
+	fileName[0] = '\0';
+	message[0] = '\0';
 	printf( "Enter the name of the board where you want to post a message: " );
 	fflush( stdin );
 	fgets( fileName, MAX_LINE, stdin );
@@ -253,14 +255,16 @@ void list_boards( int s ){
 	long recvlen;
 
 	buf[MAX_LINE] = '\0';
-	while (netlen == 0) { // sends an empty message, so skip those cases
-		if( read( s, &netlen, sizeof(uint16_t) ) == -1 ){
-			fprintf( stderr, "myfrm: error receiving listing size\n" );
-			return;
-		}
+	if( read( s, &netlen, sizeof(uint16_t) ) == -1 ){
+		fprintf( stderr, "myfrm: error receiving listing size\n" );
+		return;
 	}
 	
 	len = ntohs( netlen );
+	
+	if (len == 0) {
+		printf("\n"); return;
+	}
 	
 	for( i = 0; i < len; i += MAX_LINE ){
 		recvlen = (len - i < MAX_LINE ) ? len-i : MAX_LINE;
@@ -704,7 +708,7 @@ void send_name(int s) {
 			}
 		}// set null characters
 
-		if ( send( s, buf, strlen(buf) + 1, 0) == -1 ) {
+		if ( send( s, buf, MAX_LINE, 0) == -1 ) {
 			fprintf( stderr, "myfrm: error sending name\n");
 			exit(1);
 		}
