@@ -339,21 +339,12 @@ bool check_board(const char* board_name) {
 	FILE *fp;
 	size_t len = 0;
 
-<<<<<<< HEAD
 	fp = fopen("boards.txt", "r");
-=======
 	
-	printf("checking boards.txt\n");
-	fp = fopen("boards.txt", "r+");
->>>>>>> 471f52e46b2351094829acc10d7580fe5484ba91
-
 	if (fp == NULL) {
 		return false;
 	}
 	
-<<<<<<< HEAD
-	while (getline(&board_line, &len, fp) != -1) { //SEGFAULT
-=======
 	printf("getting board_line\n");
 	while (getline(&board_line, &len, fp) != -1) { 
 		
@@ -361,7 +352,6 @@ bool check_board(const char* board_name) {
 		printf("check: %s, %i\n", board_line, len);		
 		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
 		printf("tok succeed: %s\n", board_test);
->>>>>>> 471f52e46b2351094829acc10d7580fe5484ba91
 
 		if (strlen(board_line) <= 0) continue;
 
