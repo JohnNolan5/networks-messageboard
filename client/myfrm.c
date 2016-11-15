@@ -193,15 +193,15 @@ void create_board(int s) {
 
 void leave_message( int s_d ){
 
-	char fileName[MAX_LINE + 1];
-	char message[MAX_LINE + 1];
+	char fileName[MAX_LINE];
+	char message[MAX_LINE];
 	uint16_t result, resultNet;
 
 	fileName[0] = '\0';
 	message[0] = '\0';
 	printf( "Enter the name of the board where you want to post a message: " );
 	fflush( stdin );
-	fgets( fileName, MAX_LINE, stdin );
+	fgets( fileName, MAX_LINE-1, stdin );
 // trim the \n off the end
 	if( strlen(fileName) < MAX_LINE )
 		fileName[strlen(fileName)-1] = '\0';
@@ -213,7 +213,7 @@ void leave_message( int s_d ){
 
 	printf( "Enter your message: " );
 	fflush( stdin );
-	fgets( message, MAX_LINE, stdin );
+	fgets( message, MAX_LINE-1, stdin );
 // trim the \n off the end
 	if( strlen(message) < MAX_LINE )
 		message[strlen(message)-1] = '\0';
