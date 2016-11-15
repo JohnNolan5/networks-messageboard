@@ -19,13 +19,15 @@
 
 #define MAX_LINE 256
 
+int s_d;
+struct sockaddr_in sin;
+
 int main( int argc, char* argv[] ){
 	FILE* fp = NULL;
 	struct hostent* hp;
-	struct sockaddr_in sin;
 	char* host;
 	char buf[MAX_LINE+1];
-	int i, s, s_d, len;
+	int i, s, len;
 	uint16_t port;
 	/*struct timeval start, end;*/
 
@@ -168,7 +170,7 @@ void handle_action(char* msg, int s, int s_d) {
 	else if( !strncmp("DWN", msg, 3) )
 		download_file( s );
 	else if( !strncmp("DST", msg, 3) )
-		destroy_board( s_d );
+		destroy_board( s );
 }
 
 void create_board(int s) {
@@ -276,10 +278,11 @@ void read_board( int s ){
 	long fileLen, fileLenNet;
 	//FILE* fp;
 
-	printf( "Enter the file name to request: " );
+	printf( "Enter the board name to read: " );
 	fflush( stdin );
 	fgets( fileName, MAX_LINE, stdin );
-// trim the \n off the end
+
+	// trim the \n off the end
 	if( strlen(fileName) < MAX_LINE )
 		fileName[strlen(fileName)-1] = '\0';
 	else
@@ -326,7 +329,32 @@ void download_file( int s ){
 }
 
 void destroy_board( int s ){
+	char boardName[MAX_LINE];
+	char result[1];
+	int addr_len;
 
+	printf( "Enter the board name to read: " );
+	fflush( stdin );
+	fgets( boardName, MAX_LINE, stdin );
+
+	// trim the \n off the end
+	if( strlen(boardName) < MAX_LINE )
+		boardName[strlen(boardName)-1] = '\0';
+	else
+		boardName[MAX_LINE-1] = '\0';
+
+	// send the board name over
+	send_instruction( s, boardName );
+
+	addr_len = sizeof( sin );
+	printf( "about to receive" );
+	recvfrom( s_d, result, 1, 0, (struct sockaddr*)&sin, &addr_len );
+	printf( "result: %d\n", result[0] );
+	if( !result[0] ){
+		printf( "board deleted successfully\n" );
+	}else{
+		printf( "failed to delete board\n" );
+	}
 }
 
 void request( int s ){
