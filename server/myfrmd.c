@@ -28,6 +28,7 @@ void handle_input(char* msg, int s, const char *username);
 void create_board(int, const char *username);
 void leave_message(int, const char *);
 bool check_board(const char*);
+void delete_board_name(const char*);
 void delete_message(int);
 void edit_message(int);
 void list_boards(int);
@@ -49,11 +50,13 @@ void send_result(int, short);
 void upload(int);
 int receive_file(int,FILE**); 
 
+int s_d;
+struct sockaddr_in sin;
+
 int main( int argc, char* argv[] ){
-	struct sockaddr_in sin, client_addr;
 	char buf[MAX_LINE], username[MAX_LINE], password[MAX_LINE];
 	FILE* fp;
-	int s, s_d, new_s, len, opt;
+	int s, new_s, len, opt;
 	uint16_t port;
 	int response; // response to send back to 
 	/*char timestamp[1024];
@@ -330,17 +333,14 @@ void leave_message( int s , const char* username){
 
 }
 
-bool check_board(const char* board_name) {
-	
+bool check_board(const char* board_name) {	
 	char *board_line = NULL;
 	char *board_test = NULL;
 	FILE *fp;
 	size_t len = 0;
 
+	fp = fopen("boards.txt", "r");
 	
-	printf("checking boards.txt\n");
-	fp = fopen("boards.txt", "r+");
-
 	if (fp == NULL) {
 		return false;
 	}
@@ -367,8 +367,41 @@ bool check_board(const char* board_name) {
 
 	}
 	fclose(fp);
-
 	return false;
+}
+
+void delete_board_name(const char* board_name) {	
+	char *board_line = NULL;
+	char *board_test;
+	FILE *fpOld;
+	FILE* fpNew;
+	size_t len;
+
+	fpOld = fopen("boards.txt", "r");
+	fpNew = fopen( "tmpboards.txt", "w");
+
+	if( !fpOld || !fpNew ){
+		return;
+	}
+	
+	while (getline(&board_line, &len, fpOld) != -1) {
+		if (strlen(board_line) <= 0){
+			continue;
+			fprintf( fpNew, "\n" );
+		}
+
+		board_test = strtok(board_line, " \n");
+
+		if (strcmp(board_test, board_name) == 0) {
+			continue;
+		}
+
+		fprintf( fpNew, "%s", board_line );
+	}
+	fclose(fpOld);
+	fclose(fpNew);
+	remove("boards.txt");
+	rename("tmpboards.txt", "boards.txt");
 }
 
 void delete_message( int s ){
@@ -535,18 +568,31 @@ void download_file( int s ){
 }
 
 void destroy_board( int s ){
-	return;
-
 	char board_name[MAX_LINE];
 	bool board_exists;
+	char result[1];
 
-	if (read(s, board_name, MAX_LINE) == -1) {
-		fprintf( stderr, "myfrmd: error receiving name of new board\n");
-		exit( 1 );
+	// get the board name from the client
+	if (receive_instruction(s, (char**)&board_name) <= 0) {
+		fprintf( stderr, "myfrmd: instruction receive error\n" );
+		return;
 	}
 
+	// make sure the board exists
 	board_exists = check_board( board_name );
-	
+
+	if( board_exists ){
+		delete_board_name( board_name );
+		remove( board_name );
+		result[0] = 0;
+	}
+	else{
+		result[0] = 1;
+	}
+
+	printf( "about to send\n" );
+	sendto( s_d, result, 1, 0, (struct sockaddr*)&sin, sizeof( struct sockaddr ));
+	printf( "sent\n" );
 }
 
 void request( int s ){
