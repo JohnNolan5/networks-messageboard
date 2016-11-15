@@ -19,18 +19,19 @@
 
 #define MAX_LINE 256
 
-int s_d;
-struct sockaddr_in sin;
+int s_d, s, addr_len;
+struct sockaddr_in s_in;
 
 int main( int argc, char* argv[] ){
 	FILE* fp = NULL;
 	struct hostent* hp;
 	char* host;
 	char buf[MAX_LINE+1];
-	int i, s, len;
+	int i, len;
 	uint16_t port;
 	/*struct timeval start, end;*/
 
+	addr_len = sizeof( struct sockaddr );
 	// validate and put command line in variables
 	if( argc == 3 ){
 		host = argv[1];
@@ -48,10 +49,10 @@ int main( int argc, char* argv[] ){
 	}
 
 	// build address data structure
-	bzero( (char*)&sin, sizeof( sin ) );
-	sin.sin_family = AF_INET;
-	bcopy( hp->h_addr, (char*)&sin.sin_addr, hp->h_length );
-	sin.sin_port = htons( port );
+	bzero( (char*)&s_in, sizeof( s_in ) );
+	s_in.sin_family = AF_INET;
+	bcopy( hp->h_addr, (char*)&s_in.sin_addr, hp->h_length );
+	s_in.sin_port = htons( port );
 
 	// create the socket
 	if( (s = socket( PF_INET, SOCK_STREAM, 0 )) < 0 ){
@@ -65,7 +66,7 @@ int main( int argc, char* argv[] ){
 		exit( 1 );
 	}
 	// connect the created socket to the remote server
-	if( connect( s, (struct sockaddr*)&sin, sizeof(sin) ) < 0 ){
+	if( connect( s, (struct sockaddr*)&s_in, sizeof(s_in) ) < 0 ){
 		fprintf( stderr, "myfrm: connect error\n" );
 		close( s );
 		close( s_d );
@@ -75,7 +76,6 @@ int main( int argc, char* argv[] ){
 	if (receive_result(s) == 1) {// get request
 	// setup username and password
 	printf("Enter your username: ");
-	// TODO: move into get name function 
 	if (	fgets( buf, MAX_LINE, stdin ) ) {
 		int i;
 		for(i = 0; i < MAX_LINE; i++) {
@@ -335,7 +335,6 @@ void download_file( int s ){
 void destroy_board( int s ){
 	char boardName[MAX_LINE];
 	char result[1];
-	int addr_len;
 
 	printf( "Enter the board name to read: " );
 	fflush( stdin );
@@ -347,13 +346,15 @@ void destroy_board( int s ){
 	else
 		boardName[MAX_LINE-1] = '\0';
 
-	// send the board name over
-	send_instruction( s, boardName );
+	if( sendto( s_d, boardName, strlen(boardName)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr)) == -1 ){
+		fprintf( stderr, "myfrm: udp send error\n" );
+		return;
+	}
 
-	addr_len = sizeof( sin );
 	printf( "about to receive" );
-	recvfrom( s_d, result, 1, 0, (struct sockaddr*)&sin, &addr_len );
+	recvfrom( s_d, result, 1, 0, (struct sockaddr*)&s_in, &addr_len );
 	printf( "result: %d\n", result[0] );
+	
 	if( !result[0] ){
 		printf( "board deleted successfully\n" );
 	}else{

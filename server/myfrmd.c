@@ -50,19 +50,21 @@ void send_result(int, short);
 void upload(int);
 int receive_file(int,FILE**); 
 
-int s_d;
-struct sockaddr_in sin;
+int s_d, s, new_s, addr_len;
+struct sockaddr_in s_in;
 
 int main( int argc, char* argv[] ){
 	char buf[MAX_LINE], username[MAX_LINE], password[MAX_LINE];
 	FILE* fp;
-	int s, new_s, len, opt;
+	int len, opt;
 	uint16_t port;
 	int response; // response to send back to 
 	/*char timestamp[1024];
 	struct timeval t_of_day;
 	struct tm* local_t;
 	time_t raw_t;*/
+
+	addr_len = sizeof(struct sockaddr_in);
 
 	// validate and put command line in variables
 	if( argc == 2 ){
@@ -73,10 +75,10 @@ int main( int argc, char* argv[] ){
 	}
 
 	// build address data structure
-	bzero( (char*)&sin, sizeof( sin ) );
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_ANY;// use default IP address
-	sin.sin_port = htons( port );
+	bzero( (char*)&s_in, sizeof( s_in ) );
+	s_in.sin_family = AF_INET;
+	s_in.sin_addr.s_addr = INADDR_ANY;// use default IP address
+	s_in.sin_port = htons( port );
 
 	// create the server-side socket
 	if( ( s = socket( PF_INET, SOCK_STREAM, 0 )) < 0 ){
@@ -96,15 +98,14 @@ int main( int argc, char* argv[] ){
 		exit( 1 );
 	}
 
-	//TODO udp socket options?
 	// bind the created socket to the address
-	if( bind( s, (struct sockaddr*)&sin, sizeof( sin ) ) < 0 ){
+	if( bind( s, (struct sockaddr*)&s_in, sizeof( s_in ) ) < 0 ){
 		fprintf( stderr, "myfrmd: socket binding error\n" );
 		exit( 1 );
 	}
 
 	// bind the udp socket to the address
-	if( bind( s_d, (struct sockaddr*)&sin, sizeof( sin ) ) < 0 ){
+	if( bind( s_d, (struct sockaddr*)&s_in, sizeof( s_in ) ) < 0 ){
 		fprintf( stderr, "myfrmd: udp socket binding error\n" );
 		exit( 1 );
 	}
@@ -119,7 +120,7 @@ int main( int argc, char* argv[] ){
 
 	// wait for connection, then receive and print text
 	while( 1 ){
-		if( ( new_s = accept( s, (struct sockaddr*)&sin, &len ) ) < 0 ){
+		if( ( new_s = accept( s, (struct sockaddr*)&s_in, &len ) ) < 0 ){
 			fprintf( stderr, "myfrmd: accept error\n" );
 			exit( 1 );
 		}
@@ -139,7 +140,6 @@ int main( int argc, char* argv[] ){
 			exit( 1 );
 		}
 	
-		// TODO: make a function processing files and checking for strings
 		fp = fopen("users.txt", "ra+");
 		if (fp == NULL) {
 			fp = fopen("users.txt", "w+");
@@ -158,12 +158,11 @@ int main( int argc, char* argv[] ){
 		bool signed_in = false;
 		printf("attempting getline \n");
 		while (getline(&user_line, &len, fp) != -1) {
-			//if (((user_found = strstr(user_line, username)) != NULL) && (strlen(user_found) == strlen(username))) { 
 			if (strlen(user_line) <= 0) continue;
 			user_test = strtok(user_line, " \n");
 			printf("user_test: %s\n", user_test);
 			if (strcmp(user_test, username) == 0) {
-// username in line and s
+				// username in line and s
 				user_exists = true;	
 				pass_test = strtok(NULL, " \n");
 				printf("pass_test: %s\n", pass_test);
@@ -573,8 +572,9 @@ void destroy_board( int s ){
 	char result[1];
 
 	// get the board name from the client
-	if (receive_instruction(s, (char**)&board_name) <= 0) {
-		fprintf( stderr, "myfrmd: instruction receive error\n" );
+	addr_len = sizeof( struct sockaddr );
+	if( recvfrom( s_d, board_name, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) == -1 ){
+		fprintf( stderr, "myfrmd: upd receive error\n" );
 		return;
 	}
 
@@ -591,7 +591,7 @@ void destroy_board( int s ){
 	}
 
 	printf( "about to send\n" );
-	sendto( s_d, result, 1, 0, (struct sockaddr*)&sin, sizeof( struct sockaddr ));
+	sendto( s_d, result, 1, 0, (struct sockaddr*)&s_in, sizeof( struct sockaddr ) );
 	printf( "sent\n" );
 }
 
