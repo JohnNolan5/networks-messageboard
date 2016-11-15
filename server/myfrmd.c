@@ -570,11 +570,11 @@ void download_file( int s ){
 void destroy_board( int s ){
 	char board_name[MAX_LINE];
 	bool board_exists;
+	char result[1];
 
 	// get the board name from the client
-	if (receive_instruction(s, &board_name) <= 0) {
+	if (receive_instruction(s, (char**)&board_name) <= 0) {
 		fprintf( stderr, "myfrmd: instruction receive error\n" );
-		free( board_name );
 		return;
 	}
 
@@ -593,7 +593,6 @@ void destroy_board( int s ){
 	printf( "about to send\n" );
 	sendto( s_d, result, 1, 0, (struct sockaddr*)&sin, sizeof( struct sockaddr ));
 	printf( "sent\n" );
-	free( board_name );
 }
 
 void request( int s ){
