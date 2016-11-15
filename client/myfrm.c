@@ -29,6 +29,7 @@ int main( int argc, char* argv[] ){
 	char buf[MAX_LINE+1];
 	int i, len;
 	uint16_t port;
+	char msg[1];
 	/*struct timeval start, end;*/
 
 	addr_len = sizeof( struct sockaddr );
@@ -72,26 +73,26 @@ int main( int argc, char* argv[] ){
 		close( s_d );
 		exit( 1 );
 	}
-	
-	if (receive_result(s) == 1) {// get request
-	// setup username and password
-	printf("Enter your username: ");
-	if (	fgets( buf, MAX_LINE, stdin ) ) {
-		int i;
-		for(i = 0; i < MAX_LINE; i++) {
-			if (buf[i] == '\n' || buf[i] == ' ') {
-				buf[i] = '\0'; 
+
+	if(receive_result(s) == 1) {// get request
+		// setup username and password
+		printf("Enter your username: ");
+		if( fgets( buf, MAX_LINE, stdin ) ){
+			int i;
+			for( i=0; i<MAX_LINE; i++ ){
+				if( buf[i] == '\n' || buf[i] == ' ' ){
+					buf[i] = '\0';
+				}
 			}
-		}// set null characters
-		//strtok(buf, " \n");
-		if ( send( s, buf, strlen(buf) + 1, 0) == -1 ) {
-			fprintf( stderr, "myfrm: error sending username\n");
-			exit(1);
+
+			if( sendto( s_d, buf, strlen(buf)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+				fprintf( stderr, "myfrm: error sending username\n" );
+				exit( 1 );
+			}
+		} else {
+			fprintf( stderr, "myfrm: error, no username received \n");
+			exit( 1 );
 		}
-	} else {
-		fprintf( stderr, "myfrm: error, no username received \n");
-		exit(1);
-	}
 	}
 
 	if (receive_result(s) == 2) {// get request
@@ -142,7 +143,7 @@ int main( int argc, char* argv[] ){
 		}
 		handle_action(buf, s, s_d);
 		}
-		printf( "Enter your operation (XIT to quit): " );
+		printf( "Enter your operation (CRT, MSG, DLT, EDT, RDB, LIS, APN, DWN, DST, XIT, or SHT): " );
 	}
 
 	close( s );
@@ -241,7 +242,61 @@ void leave_message( int s_d ){
 }
 
 void delete_message( int s_d ){
+	char boardName[MAX_LINE];
+	char msg[1];
+	char line[MAX_LINE];
 
+	boardName[0] = '\0';
+	printf( "Enter the name of the board: " );
+	fflush( stdin );
+	fgets( boardName, MAX_LINE-1, stdin );
+	// trim the \n off the end
+	if( strlen(boardName) < MAX_LINE )
+		boardName[strlen(boardName)-1] = '\0';
+	else
+		boardName[MAX_LINE-1] = '\0';
+
+	addr_len = sizeof( struct sockaddr );
+	if( sendto( s_d, boardName, strlen(boardName)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+		fprintf( stderr, "myfrm: error sending board name\n" );
+		return;;
+	}
+
+	addr_len = sizeof(struct sockaddr);
+	if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrm: error receiving validation board exists\n" );
+		return;
+	}
+
+	if( msg[0] == 'n' ){
+		printf( "board does not exist\n" );
+		return;
+	}
+
+	while( 1 ){
+		printf( "listening\n" );
+		addr_len = sizeof(struct sockaddr);
+		if( recvfrom( s_d, line, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+			fprintf( stderr, "myfrm: error receiving possible message to delete\n" );
+			return;
+		}
+		if(!strcmp( line, "$" ))
+			break;
+
+		printf( "%s\n", line );
+
+		printf( "Do you want to delete the following line:\n%s\n'y' to delte, anything else to not delete:", line );
+		fflush(stdin);
+		msg[0] = fgetc( stdin );
+		fgetc( stdin );
+		printf( "msg: |%c|\n", msg[0] );
+
+		if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+			fprintf( stderr, "myfrm: error sending delete confirmation\n" );
+			return;
+		}
+	}
+	printf( "board does exist\n" );
 }
 
 void edit_message( int s_d ){
@@ -351,7 +406,10 @@ void destroy_board( int s ){
 		return;
 	}
 
-	recvfrom( s_d, result, 1, 0, (struct sockaddr*)&s_in, &addr_len );
+	if( recvfrom( s_d, result, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "error receiving result\n" );
+		return;
+	}
 	
 	if( !result[0] ){
 		printf( "board deleted successfully\n" );
