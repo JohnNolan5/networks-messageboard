@@ -319,7 +319,7 @@ void leave_message( int s , const char* username){
 			free(message);
 			return;
 		}
-		fprintf(fp, "%s\n%s\n\n", message, username);
+		fprintf(fp, "%s\n%s\n\n", username, message);
 		fclose(fp);
 		send_result(s, 1);
 
@@ -414,7 +414,7 @@ void edit_message( int s ){
 void list_boards( int s ){
 	FILE *fp; // pointer to current directory
 	char *buf;
-	char *line;
+	char line[MAX_LINE];
 	uint16_t len, netlen; // length of message
 	int alcnt = 1; // increment size (count allocs)
 	long sendlen;
