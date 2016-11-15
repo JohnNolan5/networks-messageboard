@@ -350,6 +350,62 @@ bool check_board_file(const char* board_name, const char* file_name) {
 	return false;
 }
 
+void add_file_name(const char* board_name, const char* file_name) {
+	char *board_line = NULL;
+	char *board_test = NULL;
+	FILE* fpOld;
+	FILE* fpNew;
+	FILE* fp;
+	size_t len = 0;
+
+	fpOld = fopen("boards.txt", "r");
+	fpNew = fopen( "tmpboards.txt", "w");
+	
+	if( !fpOld || !fpNew ){
+		return;
+	}
+	
+	while (getline(&board_line, &len, fpOld) != -1) { 	
+		if (strcmp(board_line, "\n") == 0){
+			fprintf( fpNew, "\n" );
+			continue;
+		}
+
+		board_test = strtok(board_line, " \n");
+
+		if (strlen(board_line) <= 0)
+			continue;
+
+		if (strcmp(board_test, board_name) == 0) {
+			strcat(board_line, " ");
+			strcat(board_line, file_name);
+		}
+		fprintf( fpNew, "%s\n", board_line ); 
+
+		memset(board_line, 0, strlen(board_line));
+		board_line = NULL;
+		memset(board_test, 0, strlen(board_test));
+		board_test = NULL;
+	}
+
+	fclose(fpOld);
+	fclose(fpNew);
+
+	remove("boards.txt");
+	rename("tmpboards.txt", "boards.txt");
+	
+	fp = fopen(board_name, "a");
+	if (fp == NULL) {
+		fprintf(stderr, "myfrm: Could not open board to append the filename\n");
+		return;
+	}
+
+	fprintf( fp, "%s\n%s\n\n", username, file_name); // add file to actual board
+
+	fclose(fp);
+
+}
+
 void delete_board_name(const char* board_name) {	
 	char *board_line = NULL;
 	char *board_test = NULL;
@@ -856,7 +912,7 @@ void append_file( int s ){
 	}
 	fclose( fp );
 
-	//TODO: append to boards.txt and end of actual board with username
+	add_file_name(boardName, fileName);
 /*
 	netuplt = htonl( upload_time );
 
