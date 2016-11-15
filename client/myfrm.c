@@ -493,7 +493,7 @@ void append_file( int s ){
 		return;;
 	}
 
-	printf( "Enter the file name to upload: " );
+	printf( "Enter the name of the file to upload: " );
 	fflush( stdin );
 	fgets( fileName, MAX_LINE, stdin );
 
@@ -597,6 +597,90 @@ void append_file( int s ){
 }
 
 void download_file( int s ){
+	char fileName[MAX_LINE];
+	char boardName[MAX_LINE];
+	FILE* fp; // file pointer to read data
+	struct stat fileStats;
+	long len, recvlen;
+//	long len, netlen;
+	//size_t addr_len;
+	char* fileText;
+	MHASH compute;
+	char msg[1];
+	char hash[16];
+	char c;
+	double thrput;
+	long i;
+
+	printf( "Enter the name of the board where you will request the file: " );
+	fflush( stdin );
+	fgets( boardName, MAX_LINE, stdin );
+
+	// trim the \n off the end
+	if( strlen(boardName) < MAX_LINE )
+		boardName[strlen(boardName)-1] = '\0';
+	else
+		boardName[MAX_LINE-1] = '\0';
+
+	addr_len = sizeof( struct sockaddr );
+	if( sendto( s_d, boardName, MAX_LINE, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+		fprintf( stderr, "myfrm: error sending board name\n" );
+		return;;
+	}
+
+	printf( "Enter the name of the file to download: " );
+	fflush( stdin );
+	fgets( fileName, MAX_LINE, stdin );
+
+	// trim the \n off the end
+	if( strlen(fileName) < MAX_LINE )
+		fileName[strlen(fileName)-1] = '\0';
+	else
+		fileName[MAX_LINE-1] = '\0';
+
+	addr_len = sizeof( struct sockaddr );
+	if( sendto( s_d, fileName, MAX_LINE, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+		fprintf( stderr, "myfrm: error sending file name\n" );
+		return;
+	}
+	
+	fp = fopen(fileName, "w+");
+	if (fp == NULL) {
+		fprintf( stderr, "myftdp: could not create file\n");
+		return;
+	} 
+	
+	printf("reading length...\n");
+	if( read( s, &len, sizeof(long) ) == -1 ){
+		fprintf( stderr, "myfrmd: size receive error\n" );
+		return;
+	}
+	len = ntohl( len );
+
+	printf("got length: %li", len);
+	if (len <= 0) {
+		fclose(fp);
+		return;
+	}
+	
+	fileText = malloc( len );
+	for( i = 0; i < len; i += MAX_LINE ){
+		recvlen = (len - i < MAX_LINE ) ? len-i : MAX_LINE;
+		if( read( s, fileText+i, recvlen ) == -1 ){
+			fprintf( stderr, "myfrmd: error receiving file data \n" );
+			free( fileText );
+			return;
+		}
+	}
+
+	// hashing removed 
+
+	// write the file
+	for (i = 0; i < len; i++) {
+		c = fileText[i]; // get every character
+		fputc( c, fp ); 
+	}
+	fclose( fp );
 
 }
 

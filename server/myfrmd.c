@@ -812,8 +812,6 @@ void read_board( int s ){
 
 void append_file( int s ){
 
-	short result;
-	int rec_result;
 	char boardName[MAX_LINE];
 	char fileName[MAX_LINE];
 	char msg[1];
@@ -823,7 +821,6 @@ void append_file( int s ){
 	int namelen; // file name length
 	int i;
 	long len, netlen, recvlen;
-	char hash[16], hashCmp[16];
 	char c;
 
 	// get board and fileName
@@ -925,6 +922,87 @@ void append_file( int s ){
 }
 
 void download_file( int s ){
+
+	char boardName[MAX_LINE];
+	char fileName[MAX_LINE];
+	struct stat fileStats;
+	char msg[1];
+	//char *buf;
+	char *fileText;
+	FILE *fp = NULL; // file pointer to write to
+	int namelen; // file name length
+	int i;
+	long fileLen, sendlen, net_size;
+	char c;
+
+	// get board and fileName
+	addr_len = sizeof(struct sockaddr);
+	if( recvfrom( s_d, boardName, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrmd: error receiving board name\n" );
+		exit( 1 );
+	}
+	if( recvfrom( s_d, fileName, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrmd: error receiving file name\n" );
+		exit( 1 );
+	}
+
+	printf("board: %s, file: %s\n", boardName, fileName);
+	bool board;
+	bool file;
+	char newFile[MAX_LINE*2 + 1];
+	strcpy(newFile, boardName);
+	strcat(newFile, "-");
+	strcat(newFile, fileName); // boardName-fileName
+	if( (board = check_board(boardName)) && (file = check_board_file( boardName, fileName )) ){
+		printf("yes board! %s \n", newFile);
+		if( access( fileName, F_OK ) != -1 ) {
+			stat(newFile, &fileStats);
+			fileLen = fileStats.st_size;
+			printf("size: %li", fileLen);
+		} else{
+			printf( "could not open the file\n" );
+			fileLen = -1;
+		}
+
+	} else {
+		printf("no board!: %s: %i, %s: %i\n",boardName,  board, fileName, file);
+		fileLen = -1;
+	}
+	
+	// send the length of the file 
+	net_size = htonl( fileLen );
+	printf("writing length %li...\n", fileLen);
+	if( write( s, &net_size, sizeof(long) ) == -1 ){
+		fprintf( stderr, "myfrm: error sending size\n" );
+		return;
+	}
+
+	printf("sent length: %li", fileLen);
+	if (fileLen <= 0) // no file to send, return
+		return;
+
+
+	fileText = malloc( fileLen );
+	fp = fopen(fileName, "r");
+	for ( i = 0; i < fileLen; i++) {
+		c = fgetc( fp );
+		fileText[i] = c;
+	}
+	fclose( fp );
+
+	for (i = 0; i < fileLen; i += MAX_LINE) {
+		sendlen = (fileLen-i < MAX_LINE) ? fileLen-i : MAX_LINE;
+		if( write( s, fileText+i, sendlen ) == -1 ){
+			fprintf( stderr, "myfrm: error sending file data\n" );
+			free( fileText );
+			return;
+		}
+		// some timing issue resolved by waiting a little
+		// NOT NEEDED LOCALLY
+	}
+
+	free( fileText );
+
 
 }
 
