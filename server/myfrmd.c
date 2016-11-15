@@ -28,6 +28,7 @@ void handle_input(char* msg, int s, const char *username);
 void create_board(int, const char *username);
 void leave_message(int, const char *);
 bool check_board(const char*);
+bool check_board_file(const char* board_name, const char* file_name);
 void delete_board_name(const char*);
 void delete_message(int);
 void edit_message(int);
@@ -122,7 +123,7 @@ int main( int argc, char* argv[] ){
 	// wait for connection, then receive and print text
 	while( 1 ){
 		if( ( new_s = accept( s, (struct sockaddr*)&s_in, &len ) ) < 0 ){
-			fprintf( stderr, "myfrmd: accept error\n" );
+			fprintf( stderr, "myfrmd: accept error, %i\n", new_s );
 			exit( 1 );
 		}
 
@@ -317,7 +318,12 @@ void leave_message( int s , const char* username){
 
 }
 
-bool check_board(const char* board_name) {	
+bool check_board(const char* board_name) {
+
+	return check_board_file(board_name, NULL);
+}
+
+bool check_board_file(const char* board_name, const char* file_name) {	
 	char *board_line = NULL;
 	char *board_test = NULL;
 	FILE *fp;
@@ -332,15 +338,29 @@ bool check_board(const char* board_name) {
 	while (getline(&board_line, &len, fp) != -1) { 
 		
 		if (strcmp(board_line, "\n") == 0) continue;
-		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
-		printf("tok succeed: %s\n", board_test);
 
-		if (strlen(board_line) <= 0) continue;
+		//if (strlen(board_line) <= 1) continue;
+	// one of these can go
+	
+		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
+
 
 		if (strcmp(board_test, board_name) == 0) {
-		// filename found
-			fclose(fp);
-			return true;
+		// board_name found
+			if (file_name == NULL) {
+				fclose(fp);
+				return true;
+			} else {
+				board_test = strtok(NULL, " \n");
+				while (board_test != NULL) {
+					if (strcmp(board_test, file_name) == 0) {
+						fclose(fp);
+						return true; // found the board
+					}
+					board_test = strtok(NULL, " \n");
+				}
+				return false;
+			}
 		}
 		memset(board_line, 0, strlen(board_line));
 		board_line = NULL;
@@ -656,6 +676,116 @@ void read_board( int s ){
 }
 
 void append_file( int s ){
+
+	short result;
+	int rec_result;
+	char boardName[MAX_LINE];
+	char fileName[MAX_LINE];
+	char msg[1];
+	//char *buf;
+	char *fileText;
+	FILE *fp = NULL; // file pointer to write to
+	int namelen; // file name length
+	int i;
+	long len, netlen, recvlen;
+	char hash[16], hashCmp[16];
+	char c;
+
+	// get board and fileName
+	addr_len = sizeof(struct sockaddr);
+	if( recvfrom( s_d, boardName, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrmd: error receiving board name\n" );
+		exit( 1 );
+	}
+	if( recvfrom( s_d, fileName, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrmd: error receiving file name\n" );
+		exit( 1 );
+	}
+
+	printf("board: %s, file: %s\n", boardName, fileName);
+	bool board;
+	bool file;
+	if( (board = check_board(boardName)) && !(file = check_board_file( boardName, fileName )) ){
+		printf("yes board!\n");
+		msg[0] = 'y';
+	} else {
+		printf("no board!: %s: %i, %s: %i\n",boardName,  board, fileName, file);
+		msg[0] = 'n';
+	}
+
+	if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+		fprintf( stderr, "myfrmd: error sending validation board exists, file does not\n" );
+		exit( 1 );
+	}
+	
+	if (msg[0] == 'n') // board did not exist or file did
+		return;
+
+	if( recvfrom(s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrmd: error receiving confirmation file exists\n" );
+		return;
+	};
+
+	if( msg[0] == 'n' )
+		return;
+
+	// get file name	
+	
+	// open the file to write to
+	char newFile[MAX_LINE*2 + 1];
+	strcpy(newFile, boardName);
+	strcat(newFile, "-");
+	strcat(newFile, fileName); // boardName-fileName
+	fp = fopen(newFile, "w+");
+	if (fp == NULL) {
+		fprintf( stderr, "myftdp: could not create file\n");
+		msg[0] = 'n';
+	} else {
+		msg[0] = 'y'; // ready 
+		// tell client we are ready
+	}	
+	if ( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+		fprintf( stderr, "myfrmd: error sending confirmation server ready \n" );
+		exit( 1 );
+	}
+	
+	if (msg[0] == 'n') 
+		return;
+
+	if( read( s, &len, sizeof(long) ) == -1 ){
+		fprintf( stderr, "myfrmd: size receive error\n" );
+		return;
+	}
+	len = ntohl( len );
+
+	fileText = malloc( len );
+	for( i = 0; i < len; i += MAX_LINE ){
+		recvlen = (len - i < MAX_LINE ) ? len-i : MAX_LINE;
+		if( read( s, fileText+i, recvlen ) == -1 ){
+			fprintf( stderr, "myfrmd: error receiving file data \n" );
+			free( fileText );
+			return;
+		}
+	}
+
+	// hashing removed 
+
+	// write the file
+	for (i = 0; i < len; i++) {
+		c = fileText[i]; // get every character
+		fputc( c, fp ); 
+	}
+	fclose( fp );
+
+	//TODO: append to boards.txt and end of actual board with username
+/*
+	netuplt = htonl( upload_time );
+
+	if( write( s, &netuplt, sizeof(long) ) == -1 )
+		fprintf( stderr, "myfrmd: error sending result to client" );
+
+*/ // no confirmation sent back now
+	free( fileText );
 
 }
 

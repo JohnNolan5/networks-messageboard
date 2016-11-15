@@ -126,7 +126,7 @@ int main( int argc, char* argv[] ){
 		return;
 	}
 
-	printf( "Enter your operation (XIT to quit): " );
+	printf( "Enter your operation (CRT, MSG, DLT, EDT, RDB, LIS, APN, DWN, DST, XIT, or SHT): " );
 	// main loop
 	while( fgets( buf, MAX_LINE, stdin ) ){
 
@@ -296,7 +296,7 @@ void delete_message( int s_d ){
 			return;
 		}
 	}
-	printf( "board does exist\n" );
+	//printf( "board does exist\n" ); // This prints to late, do we even need to notify them if the messages arrive?
 }
 
 void edit_message( int s_d ){
@@ -380,7 +380,138 @@ void read_board( int s ){
 }
 
 void append_file( int s ){
+	char fileName[MAX_LINE];
+	char boardName[MAX_LINE];
+	FILE* fp; // file pointer to read data
+	struct stat fileStats;
+	long fileLen, net_size, sendlen;
+//	long len, netlen;
+	//size_t addr_len;
+	char* fileText;
+	MHASH compute;
+	char msg[1];
+	char hash[16];
+	char c;
+	double thrput;
+	long i;
 
+	printf( "Enter the name of the board where you will attach your upload: " );
+	fflush( stdin );
+	fgets( boardName, MAX_LINE, stdin );
+
+	// trim the \n off the end
+	if( strlen(boardName) < MAX_LINE )
+		boardName[strlen(boardName)-1] = '\0';
+	else
+		boardName[MAX_LINE-1] = '\0';
+
+	addr_len = sizeof( struct sockaddr );
+	if( sendto( s_d, boardName, MAX_LINE, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+		fprintf( stderr, "myfrm: error sending board name\n" );
+		return;;
+	}
+
+	printf( "Enter the file name to upload: " );
+	fflush( stdin );
+	fgets( fileName, MAX_LINE, stdin );
+
+	// trim the \n off the end
+	if( strlen(fileName) < MAX_LINE )
+		fileName[strlen(fileName)-1] = '\0';
+	else
+		fileName[MAX_LINE-1] = '\0';
+
+	addr_len = sizeof( struct sockaddr );
+	if( sendto( s_d, fileName, MAX_LINE, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+		fprintf( stderr, "myfrm: error sending file name\n" );
+		return;;
+	}
+
+	if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrm: error receiving validation that board exists\n" );
+		return;
+	}
+
+	if( msg[0] == 'n' ){
+		printf( "The board does not exist, or file already present.\n" );
+		return;
+	}
+
+	// confirm file exists
+	if( access( fileName, F_OK ) != -1 )
+		msg[0] = 'y';
+	else{
+		printf( "The file does not exist\n" );
+		msg[0] = 'n';
+	}
+
+	if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, addr_len  ) < 0 ){
+		fprintf( stderr, "myfrm: error sending confirmation file exists\n" );
+		exit(1);
+	}
+
+	if( msg[0] == 'n' )
+		return; // file did not exist, done
+
+	
+	if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrm: error receiving validation server is ready\n" );
+		return;
+	}
+
+	if( msg[0] == 'n' ){
+		printf( "The server is not ready to receive that file.\n" );
+		return;
+	}
+	
+	stat(fileName, &fileStats);
+	fileLen = fileStats.st_size;
+
+	// send the length of the message
+	net_size = htonl( fileLen );
+
+	if( write( s, &net_size, sizeof(long) ) == -1 ){
+		fprintf( stderr, "myfrm: error sending size\n" );
+		return;
+	}
+
+
+	fileText = malloc( fileLen );
+	fp = fopen(fileName, "r");
+	for ( i = 0; i < fileLen; i++) {
+		c = fgetc( fp );
+		fileText[i] = c;
+	}
+	fclose( fp );
+
+	for (i = 0; i < fileLen; i += MAX_LINE) {
+		sendlen = (fileLen-i < MAX_LINE) ? fileLen-i : MAX_LINE;
+		if( write( s, fileText+i, sendlen ) == -1 ){
+			fprintf( stderr, "myfrm: error sending file data\n" );
+			free( fileText );
+			return;
+		}
+		// some timing issue resolved by waiting a little
+		// NOT NEEDED LOCALLY
+	}
+
+	free( fileText );
+
+	// end hash computation and send to server 
+	// DELETED
+/*
+	// receive response
+	if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrm: error receiving validation server is ready\n" );
+		return;
+	}
+
+	if ( msg[0] == 'n') {
+		printf( "myfrm: Transfer was unsuccessful\n" );
+	} else {
+		printf( "Transfer was successful\n" );
+	}
+*/
 }
 
 void download_file( int s ){
