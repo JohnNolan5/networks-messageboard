@@ -60,10 +60,6 @@ int main( int argc, char* argv[] ){
 	int len, opt;
 	uint16_t port;
 	int response; // response to send back to 
-	/*char timestamp[1024];
-	struct timeval t_of_day;
-	struct tm* local_t;
-	time_t raw_t;*/
 
 	addr_len = sizeof(struct sockaddr_in);
 
@@ -111,8 +107,6 @@ int main( int argc, char* argv[] ){
 		exit( 1 );
 	}
 
-	
-
 	// open the passive socket by listening
 	if( ( listen( s, MAX_PENDING ) ) < 0 ){
 		fprintf( stderr, "myfrmd: socket listening error\n" );
@@ -157,16 +151,13 @@ int main( int argc, char* argv[] ){
 		size_t len = 0;
 		bool user_exists = false;
 		bool signed_in = false;
-		printf("attempting getline \n");
 		while (getline(&user_line, &len, fp) != -1) {
 			if (strlen(user_line) <= 0) continue;
 			user_test = strtok(user_line, " \n");
-			printf("user_test: %s\n", user_test);
 			if (strcmp(user_test, username) == 0) {
 				// username in line and s
 				user_exists = true;	
 				pass_test = strtok(NULL, " \n");
-				printf("pass_test: %s\n", pass_test);
 				if ((strcmp(pass_test, password) == 0)) {
 					send_result(new_s, 1); // Signed in! proceed...
 					signed_in = true;
@@ -176,14 +167,11 @@ int main( int argc, char* argv[] ){
 			memset(user_test,0,strlen(user_test));
 			memset(pass_test,0,strlen(pass_test));
 		}
-		printf("ended getline \n");
 		if (!user_exists) {
 			// append username and password to file
-			//printf("%s\n", username);
 			fprintf(fp, "%s %s\n", username, password);
 			fclose(fp);
 			signed_in = true;
-			printf("got line, signed in\n");
 			send_result(new_s, 1);
 		} else if (!signed_in) {
 			// not able to sign in
@@ -191,7 +179,6 @@ int main( int argc, char* argv[] ){
 			send_result(new_s, -1); // either password wrong or need a new user name
 			fclose(fp);
 		}
-		printf( "signed in : %i\n", signed_in);
 		while( signed_in ){
 			if( read( new_s, buf, 3 ) == -1 ){
 				fprintf( stderr, "myfrmd: receive error\n" );
@@ -252,7 +239,6 @@ void create_board(int s, const char* username) {
 	
 	fp = fopen("boards.txt", "a+");
 	if (fp == NULL) {
-		printf("creating new boards.txt\n");
 		fp = fopen("boards.txt", "w+");
 		// no boards existing, tell it its new
 		if (fp == NULL) {
@@ -287,15 +273,11 @@ void leave_message( int s , const char* username){
 	bool board_exists = false;
 
 	receive_instruction(s, &fileName);
-	printf("Received: %s\n", fileName);
 	receive_instruction(s, &message);	
-	printf("Received: %s\n", message);
 	
-	printf("Adding \"%s\" to \"%s\"\n", message, fileName);
 	board_exists = check_board(fileName);
 
 	if (board_exists) {
-		printf("board exists");
 		fp = fopen(fileName, "a+");
 		if (fp == NULL) {
 			fprintf(stderr, "myfrmd: Trouble opening the board\n");
@@ -311,7 +293,6 @@ void leave_message( int s , const char* username){
 	} else {
 		send_result(s, -1); // file does not exist
 	}
-	//TODO: mapy we should call strcpy on receive_instruction reference so we dont keep allocating to and freeing it outside. 
 	free(fileName);
 	free(message);
 
@@ -332,8 +313,7 @@ bool check_board(const char* board_name) {
 	while (getline(&board_line, &len, fp) != -1) { 
 		
 		if (strcmp(board_line, "\n") == 0) continue;
-		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
-		printf("tok succeed: %s\n", board_test);
+		board_test = strtok(board_line, " \n");
 
 		if (strlen(board_line) <= 0) continue;
 
@@ -372,7 +352,7 @@ void delete_board_name(const char* board_name) {
 			continue;
 		}
 
-		board_test = strtok(board_line, " \n"); // to check for files in the future use strtok(NULL, " \n");
+		board_test = strtok(board_line, " \n");
 
 		if (strlen(board_line) <= 0)
 			continue;
@@ -402,38 +382,40 @@ void delete_message( int s ){
 	FILE* fpNew;
 	size_t len = 0;
 	char msg[1];
-	bool reading = false;
+	bool reading;
 	int count = 0;
 
+	// get the board name
 	addr_len = sizeof(struct sockaddr);
 	if( recvfrom( s_d, boardName, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
 		fprintf( stderr, "myfrmd: error receiving board name\n" );
 		exit( 1 );
 	}
 
+	// ensure board exists
 	if( check_board( boardName ) ){
+		// send message to client to verify board exists
 		msg[0] = 'y';
 		if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
 			fprintf( stderr, "myfrmd: error sending validation board exists\n" );
 			exit( 1 );
 		}
 
+		// open board and new file to write to
 		fpOld = fopen(boardName, "r");
 		fpNew = fopen( "tmp.txt", "w");
-	
 		if( !fpOld || !fpNew ){
 			return;
 		}
-	
+
+		// read through board
 		reading = false;
 		while (getline(&board_line, &len, fpOld) != -1) {
-			printf( "line: %s\n", board_line );
+			// we matched username above
 			if( reading ){
-				printf( "reading\n" );
+				// handle trailing newlines and board owner at the top
 				if (!strcmp(board_line, "\n")){
-					if( count == 2 ){
-						count--;
-					} else if( count == 1 ){
+					if( count == 1 ){
 						count--;
 						reading = false;
 					} else {
@@ -444,58 +426,61 @@ void delete_message( int s ){
 					continue;
 				}
 
+				// send line over to client and wait for delete response
 				if( sendto( s_d, board_line, strlen(board_line)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
 					fprintf( stderr, "myfrmd: error sending possible deletion\n" );
 					exit( 1 );
 				}
-				printf( "waiting...\n" );
 				addr_len = sizeof(struct sockaddr);
 				if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
 					fprintf( stderr, "myfrmd: error receiving delete confirmation\n" );
 					exit( 1 );
 				}
 
+				// either get ready for trailing newlines or copy line back to new file
 				if( msg[0] == 'y' ){
-					count = 2;
+					count = 1;
 				} else {
 					fprintf( fpNew, "%s\n%s", username, board_line );
 					reading = false;
 				}
 				continue;
 			}
-			printf( "not reading\n" );
 
+			// handle corner cases
 			if (strcmp(board_line, "\n") == 0){
 				fprintf( fpNew, "\n" );
 				continue;
 			}
-
 			if (strlen(board_line) <= 0)
 				continue;
 
+			// try to match username
 			if(!strcmp(username, board_line) == 0 ){
 				reading = true;
 				continue;
 			}
 
+			// otherwise, copy line to new file and get ready for next line
 			fprintf( fpNew, "%s\n", board_line ); 
-
 			memset(board_line, 0, strlen(board_line));
 			board_line = NULL;
 		}
-		printf( "done\n" );
+
+		// done reading- tell client
 		board_line = "$";
 		if( sendto( s_d, board_line, strlen(board_line)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
 			fprintf( stderr, "myfrmd: error sending end of deletion asking\n" );
 			exit( 1 );
 		}
 
+		// replace board with new file
 		fclose(fpOld);
 		fclose(fpNew);
-
 		remove(boardName);
 		rename("tmp.txt", boardName);
 	} else {
+		// board didn't exist- tell client
 		msg[0] = 'n';
 		if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
 			fprintf( stderr, "myfrmd: error sending validation board doesn't exist" );
@@ -505,7 +490,117 @@ void delete_message( int s ){
 }
 
 void edit_message( int s ){
+	char boardName[MAX_LINE];
+	char newLine[MAX_LINE];
+	char *board_line = NULL;
+	FILE* fpOld;
+	FILE* fpNew;
+	size_t len = 0;
+	char msg[1];
+	bool reading;
 
+	// get the board name
+	addr_len = sizeof(struct sockaddr);
+	if( recvfrom( s_d, boardName, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrmd: error receiving board name\n" );
+		exit( 1 );
+	}
+
+	// ensure board exists
+	if( check_board( boardName ) ){
+		// send message to client to verify board exists
+		msg[0] = 'y';
+		if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+			fprintf( stderr, "myfrmd: error sending validation board exists\n" );
+			exit( 1 );
+		}
+
+		// open board and new file to write to
+		fpOld = fopen(boardName, "r");
+		fpNew = fopen( "tmp.txt", "w");
+		if( !fpOld || !fpNew ){
+			return;
+		}
+
+		// read through board
+		reading = false;
+		while (getline(&board_line, &len, fpOld) != -1) {
+			// we matched username above
+			if( reading ){
+				// handle trailing newlines and board owner at the top
+				if (!strcmp(board_line, "\n")){
+					fprintf( fpNew, "%s\n", username );
+					fprintf( fpNew, "\n" );
+					reading = false;
+					continue;
+				}
+
+				// send line over to client and wait for delete response
+				if( sendto( s_d, board_line, strlen(board_line)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+					fprintf( stderr, "myfrmd: error sending possible deletion\n" );
+					exit( 1 );
+				}
+				addr_len = sizeof(struct sockaddr);
+				if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+					fprintf( stderr, "myfrmd: error receiving delete confirmation\n" );
+					exit( 1 );
+				}
+
+				// either get edited line or copy line back to new file
+				if( msg[0] == 'y' ){
+					addr_len = sizeof(struct sockaddr);
+					if( recvfrom( s_d, newLine, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+						fprintf( stderr, "myfrmd: error receiving delete confirmation\n" );
+						exit( 1 );
+					}
+					fprintf( fpNew, "%s\n%s", username, newLine );
+				} else {
+					fprintf( fpNew, "%s\n%s", username, board_line );
+				}
+				reading = false;
+				continue;
+			}
+
+			// handle corner cases
+			if (strcmp(board_line, "\n") == 0){
+				fprintf( fpNew, "\n" );
+				continue;
+			}
+			if (strlen(board_line) <= 0)
+				continue;
+
+			// try to match username
+			if(!strcmp(username, board_line) == 0 ){
+				reading = true;
+				continue;
+			}
+
+			// otherwise, copy line to new file and get ready for next line
+			fprintf( fpNew, "%s\n", board_line ); 
+			memset(board_line, 0, strlen(board_line));
+			board_line = NULL;
+		}
+
+		// done reading- tell client
+		board_line = "$";
+		if( sendto( s_d, board_line, strlen(board_line)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+			fprintf( stderr, "myfrmd: error sending end of deletion asking\n" );
+			exit( 1 );
+		}
+
+		// replace board with new file
+		fclose(fpOld);
+		fclose(fpNew);
+		remove(boardName);
+		rename("tmp.txt", boardName);
+	} else {
+		// board didn't exist- tell client
+		msg[0] = 'n';
+		if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+			fprintf( stderr, "myfrmd: error sending validation board doesn't exist" );
+			exit( 1 );
+		}
+	}
 }
 
 void list_boards( int s ){
@@ -571,15 +666,9 @@ void list_boards( int s ){
 }
 
 void read_board( int s ){
-	//char c;
 	char* fileName;
-//	char* fileText;
-//	uint16_t result;
 	long fileLen;
 	long fileLenNet, sendlen;
-	//struct stat fileStats;
-	//MHASH compute;
-	//char hash[16];
 	char line[MAX_LINE+1];
 	char *buf;
 	int alcnt = 1;
@@ -598,17 +687,13 @@ void read_board( int s ){
 	} else {
 		buf = malloc(sizeof(char)*MAX_LINE);
 		buf[0] = '\0';
-		printf("Entering while loop\n");
 		while(fgets(line, MAX_LINE, fp)!= NULL && !feof(fp)) {
-			printf("Checking length\n");
 			if (MAX_LINE*alcnt <= (strlen(buf) + strlen(line) + 1)) {
 				// size continually increments by the data added
 				buf = realloc(buf, sizeof(char)*MAX_LINE*(++alcnt));
 			}
 
 			if (feof(fp)) break;
-
-			printf("concatenating\n");
 
 			strcat(buf, line);
 			
@@ -618,7 +703,6 @@ void read_board( int s ){
 	}
 	free(fileName);
 
-	printf("Sending length: %li\n", fileLen);
 	//send message length
 	fileLenNet = htonl( fileLen );
 	if( write( s, &fileLenNet, sizeof(long) ) == -1 ){
@@ -627,7 +711,6 @@ void read_board( int s ){
 		exit(-1);
 	}
 
-	printf("checking len.");
 	// we're done if the file didn't exist or is empty
 	if(fileLen == -1 || fileLen == 0 ){
 		return;
@@ -642,14 +725,12 @@ void read_board( int s ){
 	for (i = 0; i < fileLen; i+= MAX_LINE) { 
 		// check cases where we need to send more than one part
 		sendlen = (fileLen-i < MAX_LINE) ? fileLen-i : MAX_LINE;
-		printf("writing.");
 		if( write(s, buf + i, sendlen) == -1 ){
 			fprintf( stderr, "myfrmd: error sending directory listing\n" );
 			free( buf );
 			exit(-1);
 		}
 	}
-	printf("done writing.");
 	// client can concatenate all these strings and stop listening once the length equals the announced length
 
 	free(buf);

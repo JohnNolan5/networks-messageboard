@@ -244,63 +244,145 @@ void leave_message( int s_d ){
 void delete_message( int s_d ){
 	char boardName[MAX_LINE];
 	char msg[1];
+	char c;
 	char line[MAX_LINE];
 
+	// get board name from user
 	boardName[0] = '\0';
 	printf( "Enter the name of the board: " );
 	fflush( stdin );
 	fgets( boardName, MAX_LINE-1, stdin );
+
 	// trim the \n off the end
 	if( strlen(boardName) < MAX_LINE )
 		boardName[strlen(boardName)-1] = '\0';
 	else
 		boardName[MAX_LINE-1] = '\0';
 
+	// send board name to server
 	addr_len = sizeof( struct sockaddr );
 	if( sendto( s_d, boardName, strlen(boardName)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
 		fprintf( stderr, "myfrm: error sending board name\n" );
 		return;;
 	}
 
+	// get confirmation board exists
 	addr_len = sizeof(struct sockaddr);
 	if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
 		fprintf( stderr, "myfrm: error receiving validation board exists\n" );
 		return;
 	}
-
 	if( msg[0] == 'n' ){
 		printf( "board does not exist\n" );
 		return;
 	}
 
 	while( 1 ){
-		printf( "listening\n" );
+		// receive line
 		addr_len = sizeof(struct sockaddr);
 		if( recvfrom( s_d, line, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
 			fprintf( stderr, "myfrm: error receiving possible message to delete\n" );
 			return;
 		}
+
+		// exit on end of board
 		if(!strcmp( line, "$" ))
 			break;
 
-		printf( "%s\n", line );
-
-		printf( "Do you want to delete the following line:\n%s\n'y' to delte, anything else to not delete:", line );
+		// prompt user whether to delete line
+		printf( "Do you want to delete the following line:\n%s'y' to delete, anything else to not delete: ", line );
 		fflush(stdin);
-		msg[0] = fgetc( stdin );
-		fgetc( stdin );
-		printf( "msg: |%c|\n", msg[0] );
+		c = msg[0] = fgetc( stdin );
+		while( c != '\n' )
+			c = fgetc( stdin );
 
+		// send response to server
 		if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
 			fprintf( stderr, "myfrm: error sending delete confirmation\n" );
 			return;
 		}
 	}
-	printf( "board does exist\n" );
+	printf( "reached end of board\n" );
 }
 
 void edit_message( int s_d ){
+	char boardName[MAX_LINE];
+	char newLine[MAX_LINE];
+	char msg[1];
+	char c;
+	char line[MAX_LINE];
 
+	// get board name from user
+	boardName[0] = '\0';
+	printf( "Enter the name of the board: " );
+	fflush( stdin );
+	fgets( boardName, MAX_LINE-1, stdin );
+
+	// trim the \n off the end
+	if( strlen(boardName) < MAX_LINE )
+		boardName[strlen(boardName)-1] = '\0';
+	else
+		boardName[MAX_LINE-1] = '\0';
+
+	// send board name to server
+	addr_len = sizeof( struct sockaddr );
+	if( sendto( s_d, boardName, strlen(boardName)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+		fprintf( stderr, "myfrm: error sending board name\n" );
+		return;;
+	}
+
+	// get confirmation board exists
+	addr_len = sizeof(struct sockaddr);
+	if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+		fprintf( stderr, "myfrm: error receiving validation board exists\n" );
+		return;
+	}
+	if( msg[0] == 'n' ){
+		printf( "board does not exist\n" );
+		return;
+	}
+
+	while( 1 ){
+		// receive line
+		addr_len = sizeof(struct sockaddr);
+		if( recvfrom( s_d, line, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+			fprintf( stderr, "myfrm: error receiving possible message to delete\n" );
+			return;
+		}
+
+		// exit on end of board
+		if(!strcmp( line, "$" ))
+			break;
+
+		// prompt user whether to edit line
+		printf( "Do you want to edit the following line:\n%s'y' to edit, anything else to not edit: ", line );
+		fflush(stdin);
+		c = msg[0] = fgetc( stdin );
+		while( c != '\n' )
+			c = fgetc( stdin );
+
+		// send response to server
+		if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+			fprintf( stderr, "myfrm: error sending edit confirmation\n" );
+			return;
+		}
+
+		if( msg[0] == 'y' ){
+			// get edited line
+			newLine[0] = '\0';
+			printf( "Enter the edited line:\n" );
+			fflush( stdin );
+			fgets( newLine, MAX_LINE-1, stdin );
+			newLine[MAX_LINE-1] = '\0';
+
+			// send response to server
+			if( sendto( s_d, newLine, strlen(newLine)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+				fprintf( stderr, "myfrm: error sending edited line\n" );
+				return;
+			}
+		}
+	}
+	printf( "reached end of board\n" );
 }
 
 void list_boards( int s ){
