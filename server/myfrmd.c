@@ -167,7 +167,6 @@ int main( int argc, char* argv[] ){
 			send_result(new_s, 1);
 		} else if (!signed_in) {
 			// not able to sign in
-			//printf("could not sign in\n");
 			send_result(new_s, -1); // either password wrong or need a new user name
 			fclose(fp);
 		}
@@ -829,14 +828,11 @@ void append_file( int s ){
 		exit( 1 );
 	}
 
-	printf("board: %s, file: %s\n", boardName, fileName);
 	bool board;
 	bool file;
 	if( (board = check_board(boardName)) && !(file = check_board_file( boardName, fileName )) ){
-		printf("yes board!\n");
 		msg[0] = 'y';
 	} else {
-		printf("no board!: %s: %i, %s: %i\n",boardName,  board, fileName, file);
 		msg[0] = 'n';
 	}
 
@@ -932,7 +928,6 @@ void download_file( int s ){
 		exit( 1 );
 	}
 
-	printf("board: %s, file: %s\n", boardName, fileName);
 	bool board;
 	bool file;
 	char newFile[MAX_LINE*2 + 1];
@@ -940,30 +935,24 @@ void download_file( int s ){
 	strcat(newFile, "-");
 	strcat(newFile, fileName); // boardName-fileName
 	if( (board = check_board(boardName)) && (file = check_board_file( boardName, fileName )) ){
-		printf("yes board! %s\n", newFile);
 		if( access( newFile, F_OK ) != -1 ) {
 			stat(newFile, &fileStats);
 			fileLen = fileStats.st_size;
-			printf("size: %li", fileLen);
 		} else{
-			printf( "could not open the file\n" );
 			fileLen = 0;
 		}
 
 	} else {
-		printf("no board!: %s: %i, %s: %i\n",boardName,  board, fileName, file);
 		fileLen = 0;
 	}
 	
 	// send the length of the file 
 	net_size = htonl( fileLen );
-	printf("writing length %li...\n", fileLen);
 	if( write( s, &net_size, sizeof(long) ) == -1 ){
 		fprintf( stderr, "myfrm: error sending size\n" );
 		return;
 	}
 
-	printf("sent length: %li", fileLen);
 	if (fileLen <= 0) // no file to send, return
 		return;
 

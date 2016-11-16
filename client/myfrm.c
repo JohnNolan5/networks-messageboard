@@ -115,7 +115,6 @@ int main( int argc, char* argv[] ){
 	}
 	
 	short result;
-	printf("waiting for result... \n");
 	if ((result = receive_result(s)) == 1) {
 		printf( "Signed in.\n");
 	} else if (result == -1) { //TODO: let users sign in again
@@ -131,7 +130,6 @@ int main( int argc, char* argv[] ){
 	while( fgets( buf, MAX_LINE, stdin ) ){
 
 		buf[MAX_LINE] = '\0';
-		//TODO: use s_d
 
 		if( send( s, buf, 3, 0 ) == -1 ){
 			fprintf( stderr, "myfrm: send error\n" );
@@ -629,7 +627,6 @@ void download_file( int s ){
 		return;
 	} 
 	
-	printf("reading length...\n");
 	if( read( s, &len, sizeof(long) ) == -1 ){
 		fprintf( stderr, "myfrmd: size receive error\n" );
 		return;
