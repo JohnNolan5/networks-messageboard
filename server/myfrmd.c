@@ -4,7 +4,8 @@
 // jnolan5
 // jriorda2
 
-// usage: myfrmd port
+// usage: myfrmd port password
+// server for message board service
 
 #include <stdio.h>
 #include <stdlib.h>

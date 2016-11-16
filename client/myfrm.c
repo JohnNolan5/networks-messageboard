@@ -5,6 +5,7 @@
 // jnolan5
 
 // usage: myfrm server_name port
+// client for message board service
 
 #include "myfrm.h"
 
@@ -470,7 +471,7 @@ void read_board( int s ){
 
 	// both are -1
 	if( fileLen == -1 || fileLen == 4294967295 ){
-		printf( "File does not exist\n" );
+		printf( "Board does not exist\n" );
 		return;
 	} else if (fileLen == 0) {
 		printf("\n");
