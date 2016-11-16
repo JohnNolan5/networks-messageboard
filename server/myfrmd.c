@@ -474,6 +474,8 @@ void delete_board_name(const char* board_name) {
 	FILE* fpOld;
 	FILE* fpNew;
 	size_t len = 0;
+	char boardName[MAX_LINE*2];
+	char fileName[MAX_LINE*2];
 
 	fpOld = fopen("boards.txt", "r");
 	fpNew = fopen( "tmpboards.txt", "w");
@@ -493,7 +495,20 @@ void delete_board_name(const char* board_name) {
 		if (strlen(board_line) <= 0)
 			continue;
 
+		// check for matching board
 		if (strcmp(board_test, board_name) == 0) {
+			strcpy( boardName, board_test );
+			remove( boardName );
+
+			// delete all files appended to that board
+			board_test = strtok(NULL, " \n");
+			while (board_test != NULL){
+				strcpy( fileName, boardName );
+				strcat( fileName, "-" );
+				strcat( fileName, board_test );
+				remove( fileName );
+				board_test = strtok(NULL, " \n");
+			}
 			continue;
 		}
 		fprintf( fpNew, "%s\n", board_line ); 
