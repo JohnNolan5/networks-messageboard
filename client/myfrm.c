@@ -115,7 +115,6 @@ int main( int argc, char* argv[] ){
 	}
 	
 	short result;
-	printf("waiting for result... \n");
 	if ((result = receive_result(s)) == 1) {
 		printf( "Signed in.\n");
 	} else if (result == -1) { //TODO: let users sign in again
@@ -131,7 +130,6 @@ int main( int argc, char* argv[] ){
 	while( fgets( buf, MAX_LINE, stdin ) ){
 
 		buf[MAX_LINE] = '\0';
-		//TODO: use s_d
 
 		if( send( s, buf, 3, 0 ) == -1 ){
 			fprintf( stderr, "myfrm: send error\n" );
@@ -235,7 +233,8 @@ void leave_message( int s_d ){
 	printf( "Enter the name of the board where you want to post a message: " );
 	fflush( stdin );
 	fgets( fileName, MAX_LINE-1, stdin );
-// trim the \n off the end
+
+	// trim the \n off the end
 	if( strlen(fileName) < MAX_LINE )
 		fileName[strlen(fileName)-1] = '\0';
 	else
@@ -247,7 +246,8 @@ void leave_message( int s_d ){
 	printf( "Enter your message: " );
 	fflush( stdin );
 	fgets( message, MAX_LINE-1, stdin );
-// trim the \n off the end
+
+	// trim the \n off the end
 	if( strlen(message) < MAX_LINE )
 		message[strlen(message)-1] = '\0';
 	else
@@ -447,7 +447,6 @@ void read_board( int s ){
 	char fileName[MAX_LINE];
 	char buf[MAX_LINE+1];
 	long fileLen, fileLenNet;
-	//FILE* fp;
 
 	printf( "Enter the board name to read: " );
 	fflush( stdin );
@@ -497,14 +496,9 @@ void append_file( int s ){
 	FILE* fp; // file pointer to read data
 	struct stat fileStats;
 	long fileLen, net_size, sendlen;
-//	long len, netlen;
-	//size_t addr_len;
 	char* fileText;
-	MHASH compute;
 	char msg[1];
-	char hash[16];
 	char c;
-	double thrput;
 	long i;
 
 	printf( "Enter the name of the board where you will attach your upload: " );
@@ -603,27 +597,10 @@ void append_file( int s ){
 			free( fileText );
 			return;
 		}
-		// some timing issue resolved by waiting a little
-		// NOT NEEDED LOCALLY
 	}
 
 	free( fileText );
 
-	// end hash computation and send to server 
-	// DELETED
-/*
-	// receive response
-	if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
-		fprintf( stderr, "myfrm: error receiving validation server is ready\n" );
-		return;
-	}
-
-	if ( msg[0] == 'n') {
-		printf( "myfrm: Transfer was unsuccessful\n" );
-	} else {
-		printf( "Transfer was successful\n" );
-	}
-*/
 }
 
 void download_file( int s ){
@@ -680,7 +657,6 @@ void download_file( int s ){
 		return;
 	} 
 	
-	printf("reading length...\n");
 	if( read( s, &len, sizeof(long) ) == -1 ){
 		fprintf( stderr, "myfrmd: size receive error\n" );
 		return;
@@ -743,314 +719,6 @@ void destroy_board( int s ){
 	}else{
 		printf( "failed to delete board\n" );
 	}
-}
-
-void request( int s ){
-	char c;
-	char fileName[MAX_LINE];
-	char hash[16], hashCmp[16];
-	double thrput, upload_time;
-	long fileLen;
-	FILE* fp;
-	char* fileText;
-	long recvlen, i;
-	struct timeval start, stop;
-	MHASH compute;
-
-	printf( "Enter the file name to request: " );
-	fflush( stdin );
-	fgets( fileName, MAX_LINE, stdin );
-// trim the \n off the end
-	if( strlen(fileName) < MAX_LINE )
-		fileName[strlen(fileName)-1] = '\0';
-	else
-		fileName[MAX_LINE-1] = '\0';
-
-	// send the file name over
-	send_instruction( s, fileName );
-
-	// check if file existed on server
-	fileLen = receive_result32( s );
-
-	// both are -1
-	if( fileLen == -1 || fileLen == 4294967295 ){
-		printf( "File does not exist\n" );
-		return;
-	}
-
-	// empty file case
-	if( fileLen == 0 ){
-		fp = fopen( fileName, "w+" );
-		fclose( fp );
-		return;
-	}
-
-	// get hash from server
-	if( read( s, hash, 16 ) == -1 ){
-		fprintf( stderr, "myfrm: error receiving md5 hash\n" );
-		return;
-	}
-
-	// get the file's text from the server
-	fileText = malloc( fileLen );
-	gettimeofday(&start, NULL);
-	for( i = 0; i < fileLen; i += MAX_LINE ){
-		recvlen = (fileLen - i < MAX_LINE ) ? fileLen-i : MAX_LINE;
-		if( read( s, fileText+i, recvlen ) == -1 ){
-			fprintf( stderr, "myfrm: error receiving file data\n" );
-			free( fileText );
-			return;
-		}
-	}
-
-	gettimeofday(&stop, NULL);
-
-	upload_time = stop.tv_sec - start.tv_sec + ((double)stop.tv_usec)/1000000 - ((double)start.tv_usec)/1000000;
-
-	if (upload_time != 0) {
-		thrput = ((double)fileLen)/upload_time;
-	} else {
-		thrput = 0;
-	}
-	// initialize hash computation
-	compute = mhash_init( MHASH_MD5 );
-	if( compute == MHASH_FAILED ){
-		fprintf( stderr, "myfrmd: hash failed\n" );
-		free( fileText );
-		return;
-	}
-	
-	// create and write the file
-	fp = fopen( fileName, "w+" );
-	for( i = 0; i < fileLen; i++ ){
-		c = fileText[i];
-		fputc( c, fp );
-		mhash( compute, &c, 1 );
-	}
-	fclose( fp );
-	free( fileText );
-
-	mhash_deinit( compute, hashCmp );
-	if( !strncmp( hash, hashCmp, 16 ) ){
-		printf( "Transfer was successful\n" );
-		printf("%ld bytes transferred in %.2f seconds: %.3f Megabytes per second\n", fileLen, ((float)fileLen)/((float)thrput),(float)thrput/1000000.0);
-		printf( "File MD5sum: " );
-		for (i = 0; i < 16; i++) {
-			printf("%0x", hash[i]);
-		}
-		printf( "\n" );
-		int j;
-	} else
-		printf( "Transfer was unsuccessful\n" );
-}
-
-void upload( int s ) {
-	char fileName[MAX_LINE];
-	short result, net_result;
-	FILE* fp; // file pointer to read data
-	struct stat fileStats;
-	long fileLen, net_size, sendlen;
-	char* fileText;
-	MHASH compute;
-	char hash[16];
-	char c;
-	double thrput;
-	long i;
-
-	printf( "Enter the file name to upload: " );
-	fflush( stdin );
-	fgets( fileName, MAX_LINE, stdin );
-
-	// trim the \n off the end
-	if( strlen(fileName) < MAX_LINE )
-		fileName[strlen(fileName)-1] = '\0';
-	else
-		fileName[MAX_LINE-1] = '\0';
-
-	// confirm file exists
-	if( access( fileName, F_OK ) != -1 )
-		result = 1;
-	else{
-		printf( "The file does not exist\n" );
-		result = 0;
-	}
-	net_result = htons( result );
-
-	if( write( s, &net_result, sizeof(short) ) == -1 ){
-		fprintf( stderr, "myfrm: error sending confirmation file exists\n" );
-		return;
-	}
-
-	if( !result )
-		return;
-
-	send_instruction( s, fileName );
-	
-	stat(fileName, &fileStats);
-	fileLen = fileStats.st_size;
-	result = receive_result( s );
-	if( result != 1 ){ // not ready to receive for some reason
-		printf( "The server is not ready to receive that file.\n" );
-		return;
-	}
-
-	// send the length of the message
-	net_size = htonl( fileLen );
-
-	if( write( s, &net_size, sizeof(long) ) == -1 ){
-		fprintf( stderr, "myfrm: error sending size\n" );
-		return;
-	}
-
-	// initialize hash computation
-	compute = mhash_init( MHASH_MD5 );
-	if( compute == MHASH_FAILED ){
-		fprintf( stderr, "myfrmd: hash failed\n" );
-		return;
-	}
-
-	fileText = malloc( fileLen );
-	fp = fopen(fileName, "r");
-	for ( i = 0; i < fileLen; i++) {
-		c = fgetc( fp );
-		fileText[i] = c;
-		mhash( compute, &c, 1);
-	}
-	fclose( fp );
-
-	for (i = 0; i < fileLen; i += MAX_LINE) {
-		sendlen = (fileLen-i < MAX_LINE) ? fileLen-i : MAX_LINE;
-		if( write( s, fileText+i, sendlen ) == -1 ){
-			fprintf( stderr, "myfrm: error sending file data\n" );
-			free( fileText );
-			return;
-		}
-		// some timing issue resolved by waiting a little
-		usleep( 7000 );
-	}
-	free( fileText );
-
-	// end hash computation and send to server 
-	mhash_deinit( compute, hash );
-	if( write( s, hash, 16 ) == -1 ){
-		fprintf( stderr, "myfrmd: error sending hash\n" );
-		return;
-	}
-
-	printf( "hash: " );
-	for( i=0; i<16; i++ )
-		printf( "%.2x", hash[i] );
-	printf( "\n" );
-
-	// receive response
-	long upload_time;
-
-	upload_time = receive_result32( s );
-	// signed and unsigned -1
-	if( upload_time == -1 || upload_time == 4294967295 ){
-		printf( "myfrm: Transfer was unsuccessful\n" );
-	} else {
-		printf( "Transfer was successful\n" );
-		thrput = ((double)fileLen)/upload_time;
-		printf("%ld bytes transferred in %.2f seconds: %.3f Megabytes per second\n", fileLen, ((double)upload_time)/1000000, thrput);
-		printf("File MD5sum: %x\n", hash);
-	}
-
-}
-
-void delete_file(int s){
-	char buf[MAX_LINE];
-	short result;
-
-	// buf = malloc( sizeof(char)*MAX_LINE );
-
-	printf( "Enter the file name to remove: " );
-	fflush( stdin );
-	fgets( buf, MAX_LINE, stdin );
-
-	// trim the \n off the end of buf
-	buf[strlen(buf)-1] = 0;
-
-	send_instruction( s, buf );
-
-	result = receive_result( s );
-	if( result == 1 ){
-		buf[0] = '\0';
-
-		while( strncmp( buf, "Yes", 3 ) && strncmp( buf, "No", 2 ) ){
-			printf( "Confirm you want to delete the file: \"Yes\" to delete, \"No\" to ignore: " );
-			fflush( stdin );
-			fgets( buf, MAX_LINE, stdin );
-		}
-
-		send_instruction( s, buf );
-		
-		if( !strncmp( buf, "No", 2 ) )
-			printf( "Delete abandoned by the user!\n" );
-		else{
-			result = receive_result( s );
-			if( result == 1 )
-				printf( "File deleted\n" );
-			else if( result == -1 )
-				printf( "Failed to delete file\n" );
-		}
-	} else if( result == -1 )
-		printf( "The file does not exist on the server\n" );
-}
-
-
-void remove_dir(int s) {
-	char buf[MAX_LINE];
-	short result;
-
-	printf( "Enter the directory name to remove: " );
-	fflush( stdin );
-	fgets( buf, MAX_LINE, stdin );
-	send_instruction( s, buf );
-
-	result = receive_result( s );
-	if( result == 1 ){
-		buf[0] = '\0';
-
-		while( strncmp( buf, "Yes", 3 ) && strncmp( buf, "No", 2 ) ){
-			printf( "Confirm you want to delete the directory: \"Yes\" to delete, \"No\" to ignore: " );
-			fflush( stdin );
-			fgets( buf, MAX_LINE, stdin );
-		}
-
-		send_instruction( s, buf );
-		
-		if( !strncmp( buf, "No", 2 ) )
-			printf( "Delete abandoned by the user!\n" );
-		else{
-			result = receive_result( s );
-			if( result == 1 )
-				printf( "Directory deleted\n" );
-			else if( result == -1 )
-				printf( "Failed to delete directory\n" );
-		}
-	} else if( result == -1 )
-		printf( "The directory does not exist on the server\n" );
-	else
-		printf( "WTF: %d\n", result );
-}
-
-void change_dir(int s) {
-	char buf[MAX_LINE];
-	short result;
-	printf( "Enter the directory name: " );
-	fflush( stdin );
-	fgets( buf, MAX_LINE, stdin );
-
-	send_instruction( s, buf );
-
-	result = receive_result( s );
-	if( result == 1 )
-		printf( "Changed current directory\n" );
-	else if( result == -1 )
-		printf( "Error in changing directory\n" );
-	else if( result == -2 )
-		printf( "The directory does not exist on server\n" );
 }
 
 void send_instruction(int s, char* message) {

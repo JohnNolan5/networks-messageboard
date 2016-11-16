@@ -39,17 +39,8 @@ void download_file(int);
 void destroy_board(int);
 void myShutdown();
 
-void request(int);
-int list_dir(int);
-void remove_dir(int);
-void make_dir(int);
-void delete_file(int);
-void change_dir(int);
-int check_dir(char*); // checks that the directory exists
-int check_file(char*);
 int receive_instruction(int,char**);
 void send_result(int, short);
-void upload(int);
 int receive_file(int,FILE**); 
 
 int s_d, s, new_s, addr_len;
@@ -178,7 +169,6 @@ int main( int argc, char* argv[] ){
 			send_result(new_s, 1);
 		} else if (!signed_in) {
 			// not able to sign in
-			//printf("could not sign in\n");
 			send_result(new_s, -1); // either password wrong or need a new user name
 			fclose(fp);
 		}
@@ -795,7 +785,7 @@ void list_boards( int s ){
 	}
 
 	// loop through for large strings
-	int i;
+	long i;
 	for (i = 0; i < len; i+= MAX_LINE) { 
 		// check cases where we need to send more than one part
 		sendlen = (len-i < MAX_LINE) ? len-i : MAX_LINE;
@@ -866,7 +856,7 @@ void read_board( int s ){
 	}
 
 	// loop through for large strings
-	int i;
+	long i;
 	for (i = 0; i < fileLen; i+= MAX_LINE) { 
 		// check cases where we need to send more than one part
 		sendlen = (fileLen-i < MAX_LINE) ? fileLen-i : MAX_LINE;
@@ -889,8 +879,7 @@ void append_file( int s ){
 	//char *buf;
 	char *fileText;
 	FILE *fp = NULL; // file pointer to write to
-	int namelen; // file name length
-	int i;
+	long i;
 	long len, netlen, recvlen;
 	char c;
 
@@ -905,14 +894,11 @@ void append_file( int s ){
 		exit( 1 );
 	}
 
-	printf("board: %s, file: %s\n", boardName, fileName);
 	bool board;
 	bool file;
 	if( (board = check_board(boardName)) && !(file = check_board_file( boardName, fileName )) ){
-		printf("yes board!\n");
 		msg[0] = 'y';
 	} else {
-		printf("no board!: %s: %i, %s: %i\n",boardName,  board, fileName, file);
 		msg[0] = 'n';
 	}
 
@@ -971,8 +957,6 @@ void append_file( int s ){
 		}
 	}
 
-	// hashing removed 
-
 	// write the file
 	for (i = 0; i < len; i++) {
 		c = fileText[i]; // get every character
@@ -981,13 +965,7 @@ void append_file( int s ){
 	fclose( fp );
 
 	add_file_name(boardName, fileName);
-/*
-	netuplt = htonl( upload_time );
 
-	if( write( s, &netuplt, sizeof(long) ) == -1 )
-		fprintf( stderr, "myfrmd: error sending result to client" );
-
-*/ // no confirmation sent back now
 	free( fileText );
 
 }
@@ -1001,8 +979,7 @@ void download_file( int s ){
 	//char *buf;
 	char *fileText;
 	FILE *fp = NULL; // file pointer to write to
-	int namelen; // file name length
-	int i;
+	long i;
 	long fileLen, sendlen, net_size;
 	char c;
 
@@ -1017,7 +994,6 @@ void download_file( int s ){
 		exit( 1 );
 	}
 
-	printf("board: %s, file: %s\n", boardName, fileName);
 	bool board;
 	bool file;
 	char newFile[MAX_LINE*2 + 1];
@@ -1025,30 +1001,24 @@ void download_file( int s ){
 	strcat(newFile, "-");
 	strcat(newFile, fileName); // boardName-fileName
 	if( (board = check_board(boardName)) && (file = check_board_file( boardName, fileName )) ){
-		printf("yes board! %s\n", newFile);
 		if( access( newFile, F_OK ) != -1 ) {
 			stat(newFile, &fileStats);
 			fileLen = fileStats.st_size;
-			printf("size: %li", fileLen);
 		} else{
-			printf( "could not open the file\n" );
 			fileLen = 0;
 		}
 
 	} else {
-		printf("no board!: %s: %i, %s: %i\n",boardName,  board, fileName, file);
 		fileLen = 0;
 	}
 	
 	// send the length of the file 
 	net_size = htonl( fileLen );
-	printf("writing length %li...\n", fileLen);
 	if( write( s, &net_size, sizeof(long) ) == -1 ){
 		fprintf( stderr, "myfrm: error sending size\n" );
 		return;
 	}
 
-	printf("sent length: %li", fileLen);
 	if (fileLen <= 0) // no file to send, return
 		return;
 
@@ -1104,371 +1074,6 @@ void destroy_board( int s ){
 	if( sendto( s_d, result, 1, 0, (struct sockaddr*)&s_in, sizeof( struct sockaddr ) ) < 0 ){
 		fprintf( stderr, "myfrmd: error sending result\n" );
 	}
-}
-
-void request( int s ){
-	char c;
-	char* fileName;
-	char* fileText;
-	uint16_t result;
-	long fileLen;
-	long fileLenNet, sendlen, i;
-	struct stat fileStats;
-	MHASH compute;
-	char hash[16];
-	FILE* fp;
-
-	if (receive_instruction(s, &fileName) <= 0) {
-		fprintf( stderr, "myfrmd: instruction receive error\n" );
-		free( fileName );
-		return;
-	}
-
-	result = check_file( fileName );
-
-	// file exists: get file length
-	if( result == 1 ){
-		stat( fileName, &fileStats );
-		fileLen = fileStats.st_size;
-
-	// file doesn't exist: return result
-	} else {
-		fileLen = -1;
-	}
-
-	// send the file size to the client
-	fileLenNet = htonl( fileLen );
-	if( write( s, &fileLenNet, sizeof(long) ) == -1 ){
-		fprintf( stderr, "myfrmd: error sending file size\n" );
-		free( fileName );
-		return;
-	}
-
-	// we're done if the file didn't exist or is empty
-	if( result != 1 || fileLen == 0 ){
-		free( fileName );
-		return;
-	}
-
-	// initialize hash computation
-	compute = mhash_init( MHASH_MD5 );
-	if( compute == MHASH_FAILED ){
-		fprintf( stderr, "myfrmd: hash failed\n" );
-		free( fileName );
-		return;
-	}
-
-	// get ready to read file
-	fileText = malloc( fileLen );
-	fp = fopen( fileName, "r" );
-	free( fileName );
-
-	// actually read the file
-	for( i = 0; i < fileLen; i++ ){
-		c = fgetc( fp );
-		fileText[i] = c;
-		mhash( compute, &c, 1 );
-	}
-	fclose( fp );
-
-	// end hash computation and send to client
-	mhash_deinit( compute, hash );
-	if( write( s, hash, 16 ) == -1 ){
-		fprintf( stderr, "myfrmd: error sending hash\n" );
-		free( fileText );
-		return;
-	}
-
-	// send the file's data to the client
-	for( i=0; i<fileLen; i+= MAX_LINE ){
-		sendlen = (fileLen - i < MAX_LINE) ? fileLen-i : MAX_LINE;
-		if( write( s, fileText+i, sendlen ) == -1 ){
-			fprintf( stderr, "myfrmd: error sending file data\n" );
-			free( fileText );
-			return;
-		}
-		// some timing issue resolved by waiting a little
-		usleep( 200 );
-	}
-
-	free( fileText );
-}
-
-void upload( int s ) {
-	short result;
-	int rec_result;
-	char *buf;
-	char *fileText;
-	FILE *fp = NULL; // file pointer to write to
-	int namelen; // file name length
-	int i;
-	long len, recvlen;
-	char hash[16], hashCmp[16];
-	char c;
-	long upload_time, netuplt;
-	struct timeval start, stop;
-	MHASH compute;
-
-	if( read( s, &result, sizeof(short) ) == -1 ){
-		fprintf( stderr, "myfrmd: error receiving confirmation file exists\n" );
-		return;
-	}
-	result = ntohs( result );
-
-	if( !result )
-		return;
-
-	// get file name
-	if ( receive_instruction(s, &buf) <= 0 ) {
-		fprintf( stderr, "myfrmd: error receiving file name\n" );
-		return;
-	}
-	
-	// open the file to write to
-	fp = fopen(buf, "w+");
-	if (fp == NULL) {
-		fprintf( stderr, "myftdp: could not create file\n");
-		result = -1; // not ready
-		send_result(s, result);
-		return;
-	} else {
-		result =  1; // ready 
-		// tell client we are ready
-		send_result(s, result);
-	}	
-	
-	if( read( s, &len, sizeof(long) ) == -1 ){
-		fprintf( stderr, "myfrmd: size receive error\n" );
-		return;
-	}
-	len = ntohl( len );
-
-	fileText = malloc( len );
-	gettimeofday(&start, NULL);
-	for( i = 0; i < len; i += MAX_LINE ){
-		recvlen = (len - i < MAX_LINE ) ? len-i : MAX_LINE;
-		if( read( s, fileText+i, recvlen ) == -1 ){
-			fprintf( stderr, "myfrmd: error receiving instruction\n" );
-			free( fileText );
-			return;
-		}
-	}
-	gettimeofday(&stop, NULL);
-
-	upload_time = 1000000*stop.tv_sec + stop.tv_usec - 1000000*start.tv_sec - start.tv_usec;
-	
-	// get hash from client
-	if( read( s, hash, 16 ) == -1 ){
-		fprintf( stderr, "myftp: error receiving md5 hash\n" );
-		free( fileText );
-		return;
-	}
-
-	// initialize hash computation
-	compute = mhash_init( MHASH_MD5 );
-	if( compute == MHASH_FAILED ){
-		fprintf( stderr, "myfrmd: hash failed\n" );
-		free( buf );
-		return;
-	}
-
-	// write the file
-	for (i = 0; i < len; i++) {
-		c = fileText[i]; // get every character
-		fputc( c, fp ); 
-		mhash( compute, &c, 1 );
-	}
-	fclose( fp );
-
-	printf( "upload time: %ld\n", upload_time );
-	
-	// get hash
-	mhash_deinit( compute, hashCmp );
-	if ( strncmp( hash, hashCmp, 16 )) { // hash unsuccessful
-		// set to -1 if there is an error
-		upload_time = -1;
-	}
-	netuplt = htonl( upload_time );
-
-	printf( "hash: " );
-	for( i=0; i<16; i++ )
-		printf( "%.2x", hashCmp[i] );
-	printf( "\n" );
-
-	if( write( s, &netuplt, sizeof(long) ) == -1 )
-		fprintf( stderr, "myfrmd: error sending result to client" );
-
-	free( fileText );
-}
-
-void delete_file(int s) {
-	char* file;
-	char* confirm;
-	uint16_t result, netresult;
-
-	if (receive_instruction(s, &file) <= 0) {
-		fprintf( stderr, "myfrmd: instruction receive error\n" );
-		free( file );
-		return;
-	}
-
-	result = check_file( file );
-
-	netresult = htons( result );
-	// send response regarding file existence
-	if (send(s, &netresult, sizeof(uint16_t), 0) == -1) {
-		fprintf( stderr, "myfrmd: error sending file status\n");
-		free( file );
-		return;
-	}
-
-	// file exists
-	if( result == 1 ){
-		// get confirmation from client
-		if( receive_instruction( s, &confirm ) <= 0 ){
-			fprintf( stderr, "myfrmd: error receiving client confirmation\n" );
-			free( file );
-			return;
-		}
-
-		if (!strncmp(confirm, "Yes", 3)) {
-			// success
-			if( !remove( file ) )
-				result = 1;
-			// otherwise failure
-			else
-				result = -1;
-
-		}
-	}
-	send_result(s, result);
-
-	free( file );
-}
-
-
-void remove_dir(int s) {
-	char* dir;
-	char* confirm;
-	uint16_t result, netresult;
-
-	if (receive_instruction(s, &dir) <= 0) {
-		fprintf( stderr, "myfrmd: instruction receive error\n" );
-		free( dir );
-		return;
-	}
-
-	result = check_dir(dir);
-
-	netresult = htons( result );
-	// send response regarding directory
-	if (send(s, &netresult, sizeof(uint16_t), 0) == -1) {
-		fprintf( stderr, "myfrmd: error sending directory status\n");
-		free( dir );
-		return;
-	}
-
-	// directory exists
-	if( result == 1 ){
-		// get confirmation from client
-		if( receive_instruction( s, &confirm ) <= 0 ){
-			fprintf( stderr, "myfrmd: error receiving client confirmation\n" );
-			free( dir );
-			return;
-		}
-
-		if (!strncmp(confirm, "Yes", 3)) {
-			// success
-			if( rmdir( dir ) == 0 )
-				result = 1;
-			// otherwise failure
-			else
-				result = -1;
-
-			netresult = htons( result );
-			if( write( s, &netresult, sizeof(uint16_t) ) == -1 )
-				fprintf( stderr, "myfrmd: error sending result to client" );
-		}
-	}
-	free( dir );
-}
-
-// checks that file exists
-int check_file(char *file) {
-	// exists
-	if( access( file, F_OK ) != -1 )
-		return 1;
-	// doesn't exist
-	else
-		return -1;
-}
-
-int check_dir(char *dir) { // checks that the directory exists
-
-	DIR *dp; // pointer to current directory
-	strtok(dir, "\n");
-	dp = opendir(dir); // open working directory
-	if (dp == NULL){
-		//fprintf( stderr, "myfrmd: error opening directory\n" );
-		return -1;
-	} else {
-		closedir(dp);
-		return 1; //directory found
-	}
-}
-
-
-
-void make_dir(int s) {
-	char* dir; 
-	struct stat st = {0}; // holds directory status
-	short result;
-
-	if( receive_instruction( s, &dir ) <= 0 ){
-		fprintf( stderr, "myfrmd: instruction receive error\n" );
-		free( dir );
-		return;
-	}
-
-	// directory doesn't exist
-	if( check_dir( dir ) == -1 ){
-		// successful mkdir
-		if( !mkdir( dir, 0700 ) )
-			result = 1;
-		// otherwise failure to create dir
-		else
-			result = -1;
-	// directory exists
-	} else
-		result = -2;
-	
-	send_result(s, result);
-
-	free( dir );
-}
-
-void change_dir(int s) {
-	char* dir;
-	short result;
-	uint16_t netresult;
-
-	if (receive_instruction(s, &dir) <= 0)
-		result = -1;
-	else if (check_dir(dir) == -1) // directory not found
-		result = -2;
-	else if( chdir( dir ) == 0 ) // success // TODO: remove new line, might replace with strtok(dir, "\n");
-		result = 1;
-	else
-		result = -1;
-
-	send_result(s, result);
-/*
-	netresult = htons( result );
-	if( write( s, &netresult, sizeof(uint16_t) ) == -1 )
-		fprintf( stderr, "myfrmd: error sending result to client" );
-
-*/
-	free( dir );
 }
 
 void send_result(int s, short result) {
