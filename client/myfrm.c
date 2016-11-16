@@ -30,7 +30,7 @@ int main( int argc, char* argv[] ){
 	int i, len;
 	uint16_t port;
 	char msg[1];
-	/*struct timeval start, end;*/
+	char pass[MAX_LINE];
 
 	addr_len = sizeof( struct sockaddr );
 	// validate and put command line in variables
@@ -137,11 +137,41 @@ int main( int argc, char* argv[] ){
 			fprintf( stderr, "myfrm: send error\n" );
 			exit( 1 );
 		} else {
-		if( !strncmp( buf, "XIT", 3 ) ){
-			printf( "Bye bye\n" );
-			break;
-		}
-		handle_action(buf, s, s_d);
+			if( !strncmp( buf, "XIT", 3 ) ){
+				printf( "Bye bye\n" );
+				break;
+			} else if( !strncmp( buf, "SHT", 3 ) ){
+				// prompt user for admin password
+				printf( "Enter the admin password: " );
+				fflush( stdin );
+				fgets( pass, MAX_LINE-1, stdin );
+				if( strlen(pass) < MAX_LINE )
+					pass[strlen(pass)-1] = '\0';
+				else
+					pass[MAX_LINE-1] = '\0';
+
+				// send password to server
+				if( sendto( s_d, pass, strlen(pass)+1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr) ) < 0 ){
+					fprintf( stderr, "error sending admin password to server\n" );
+					exit( 1 );
+				}
+
+				// get and handle confirmation response
+				if( recvfrom( s_d, msg, 1, 0, (struct sockaddr*)&s_in, &addr_len ) < 0 ){
+					fprintf( stderr, "error receiving password confirmation response\n" );
+					exit( 1 );
+				}
+				if( msg[0] == 'y' ){
+					printf( "server shutdown\n" );
+					printf( "Bye bye\n" );
+					break;
+				} else {
+					printf( "incorrect password!\n" );
+					printf( "Enter your operation (CRT, MSG, DLT, EDT, RDB, LIS, APN, DWN, DST, XIT, or SHT): " );
+					continue;
+				}
+			}
+			handle_action(buf, s, s_d);
 		}
 		printf( "Enter your operation (CRT, MSG, DLT, EDT, RDB, LIS, APN, DWN, DST, XIT, or SHT): " );
 	}

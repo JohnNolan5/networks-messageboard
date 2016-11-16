@@ -37,6 +37,7 @@ void read_board(int);
 void append_file(int);
 void download_file(int);
 void destroy_board(int);
+void myShutdown();
 
 void request(int);
 int list_dir(int);
@@ -61,14 +62,15 @@ int main( int argc, char* argv[] ){
 	int len, opt;
 	uint16_t port;
 	int response; // response to send back to 
+	char pass[MAX_LINE];
 
 	addr_len = sizeof(struct sockaddr_in);
 
 	// validate and put command line in variables
-	if( argc == 2 ){
+	if( argc == 3 ){
 		port = atoi(argv[1]);
 	} else {
-		fprintf( stderr, "usage: myfrmd port\n" );
+		fprintf( stderr, "usage: myfrmd port password\n" );
 		exit( 1 );
 	}
 
@@ -187,6 +189,33 @@ int main( int argc, char* argv[] ){
 			if( !strncmp( buf, "XIT", 3)) {
 				break;
 			}
+			if( !strncmp( buf, "SHT", 3)) {
+				// receive password from client
+				if( recvfrom( s_d, pass, MAX_LINE, 0, (struct sockaddr*)&s_in, &addr_len) < 0 ){
+					fprintf( stderr, "error receiving admin password from user\n" );
+					exit( 1 );
+				}
+
+				// ensure password matches and notify client
+				if( !strcmp( pass, argv[2] ) ){
+					msg[0] = 'y';
+				} else {
+					msg[0] = 'n';
+				}
+				if( sendto( s_d, msg, 1, 0, (struct sockaddr*)&s_in, sizeof(struct sockaddr)) < 0 ){
+					fprintf( stderr, "error sending admin password matching response\n" );
+					exit( 1 );
+				}
+
+				// do some cleanup fun
+				if( msg[0] == 'y' ){
+					myShutdown();
+					close( new_s );
+					close( s_d );
+					exit( 0 );
+				} else
+					continue;
+			}
 			handle_input(buf, new_s, username);
 		}
 
@@ -221,7 +250,6 @@ void handle_input(char* msg, int s, const char* username) {
 }
 
 void create_board(int s, const char* username) {
-
 	char board_name[MAX_LINE];	
 	char *board_test;
 	char *board_line;
@@ -264,7 +292,45 @@ void create_board(int s, const char* username) {
 
 	send_result(s, 1);
 	return;
-	
+}
+
+void myShutdown(){
+	char *board_test = NULL;
+	char *board_line = NULL;
+	size_t len = 0;
+	FILE *fp;
+	char boardName[2*MAX_LINE];
+	char fileName[2*MAX_LINE];
+
+	// read through boards.txt to know what files to delete
+	fp = fopen("boards.txt", "r");
+	while (getline(&board_line, &len, fp) != -1) { 
+		if (strcmp(board_line, "\n") == 0)
+			continue;
+
+		// delete the board itself
+		board_test = strtok(board_line, " \n");
+		strcpy( boardName, board_test );
+		remove( boardName );
+
+		// delete all files appended to that board
+		board_test = strtok(NULL, " \n");
+		while (board_test != NULL){
+			strcpy( fileName, boardName );
+			strcat( fileName, "-" );
+			strcat( fileName, board_test );
+			remove( fileName );
+			board_test = strtok(NULL, " \n");
+		}
+
+		board_line = NULL;
+		board_test = NULL;
+
+	}
+
+	// cleanup and delete boards.txt itself
+	fclose(fp);
+	remove( "boards.txt" );
 }
 
 void leave_message( int s , const char* username){
